@@ -216,3 +216,8 @@ La primera tarjeta usa la regla anual configurada para el indicador:
 - `none`: mantiene la medida principal oculta.
 
 Esto permite que indicadores como viajeros, plazas ocupadas o habitaciones ocupadas muestren totales anuales, mientras que tasas, ocupación y estadía respetan su fórmula metodológica.
+
+
+## Navegación pública compacta por árbol
+
+En la vista pública, al seleccionar un destino, la barra lateral se desplaza automáticamente a los indicadores del destino y los muestra agrupados por rama. Las ramas arrancan plegadas para evitar scroll innecesario y el usuario despliega solo el bloque que necesita.

@@ -127,6 +127,25 @@ function getGroupStateKey(destinationId, groupTitle) {
   return `${destinationId || UNASSIGNED_DESTINATION_ID}::${groupTitle}`;
 }
 
+function collapseSidebarGroupsForDestination(destinationId) {
+  groupIndicatorsByTitle(getIndicatorsForDestination(destinationId)).forEach(group => {
+    const key = getGroupStateKey(destinationId, group.title);
+    groupCollapseState.sidebar[key] = true;
+  });
+}
+
+function scrollSidebarToIndicatorTree() {
+  const sidebar = document.querySelector('.sidebar');
+  const sidebarList = document.getElementById('sidebarList');
+  if (!sidebar || !sidebarList) return;
+  requestAnimationFrame(() => {
+    sidebar.scrollTo({
+      top: Math.max(0, sidebarList.offsetTop - 42),
+      behavior: 'smooth',
+    });
+  });
+}
+
 function isGroupCollapsed(scope, destinationId, groupTitle) {
   const key = getGroupStateKey(destinationId, groupTitle);
   return Boolean(groupCollapseState[scope]?.[key]);
@@ -354,8 +373,10 @@ async function selectDestination(destinationId) {
 
   overviewScrollState[currentDestination.id] = 0;
   await hydrateDestinationDataStatus(destinationId);
+  collapseSidebarGroupsForDestination(destinationId);
   renderSidebar();
   showCurrentDestinationOverview({ restoreScroll: false });
+  scrollSidebarToIndicatorTree();
 }
 
 function showCurrentDestinationOverview({ restoreScroll = true } = {}) {
