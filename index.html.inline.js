@@ -182,6 +182,40 @@ function renderGroupedSidebarIndicators(items, destinationId) {
   }).join('');
 }
 
+
+function renderDestinationQuickIndex(items, destinationId) {
+  if (!items || !items.length) return '';
+  const groups = groupIndicatorsByTitle(items);
+  return `
+    <div class="quick-index-header">
+      <div>
+        <h3>Accesos rápidos a indicadores</h3>
+        <p>Seleccioná directamente el indicador que querés abrir, sin recorrer todas las tarjetas.</p>
+      </div>
+      <span class="badge badge-blue">${items.length} indicador${items.length !== 1 ? 'es' : ''}</span>
+    </div>
+    <div class="quick-index-groups">
+      ${groups.map(group => `
+        <div class="quick-index-group">
+          <div class="quick-index-group-title">
+            <span class="quick-index-dot"></span>
+            <strong>${escapeHtml(group.title)}</strong>
+            <span>${group.indicators.length}</span>
+          </div>
+          <div class="quick-index-links">
+            ${group.indicators.map(ind => `
+              <button class="quick-index-link" type="button" onclick="selectIndicator('${ind.id}')">
+                <span>${escapeHtml(ind.name)}</span>
+                ${ind.has_data ? '<small class="success">datos</small>' : '<small class="warning">vacío</small>'}
+              </button>
+            `).join('')}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
 function renderGroupedOverviewCards(items, destinationId) {
   const groups = groupIndicatorsByTitle(items);
   return groups.map(group => {
@@ -346,12 +380,21 @@ function showCurrentDestinationOverview({ restoreScroll = true } = {}) {
   document.getElementById('overviewWithDataCount').textContent = String(withData);
   document.getElementById('overviewWithoutDataCount').textContent = String(withoutData);
 
+  const quickIndex = document.getElementById('destinationQuickIndex');
   const cards = document.getElementById('destinationCards');
   const empty = document.getElementById('destinationCardsEmpty');
   if (!items.length) {
+    if (quickIndex) {
+      quickIndex.innerHTML = '';
+      quickIndex.style.display = 'none';
+    }
     cards.innerHTML = '';
     empty.style.display = 'block';
   } else {
+    if (quickIndex) {
+      quickIndex.innerHTML = renderDestinationQuickIndex(items, currentDestination.id);
+      quickIndex.style.display = 'block';
+    }
     empty.style.display = 'none';
     cards.innerHTML = renderGroupedOverviewCards(items, currentDestination.id);
   }
