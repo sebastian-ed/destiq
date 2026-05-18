@@ -275,12 +275,7 @@ async function initApp() {
   try {
     await Promise.all([loadDestinations(), loadIndicators()]);
     renderComparisonControls();
-    const initialDestination = getRenderableDestinations()[0];
-    if (initialDestination) {
-      await selectDestination(initialDestination.id);
-    } else {
-      showEmptyState();
-    }
+    showEmptyState();
   } catch (e) {
     document.getElementById('destinationList').innerHTML = '<p style="padding:16px;font-size:12px;color:var(--danger)">Error cargando destinos e indicadores</p>';
   }
@@ -381,9 +376,56 @@ function scrollSidebarToIndicatorTree() {
   const sidebar = document.querySelector('.sidebar');
   const sidebarList = document.getElementById('sidebarList');
   if (!sidebar || !sidebarList) return;
+
   requestAnimationFrame(() => {
+    const isMobileLayout = window.matchMedia('(max-width: 900px)').matches;
+
+    if (isMobileLayout) {
+      const top = sidebarList.getBoundingClientRect().top + window.scrollY - 14;
+      window.scrollTo({
+        top: Math.max(0, top),
+        behavior: 'smooth',
+      });
+      sidebarList.classList.add('mobile-focus-pulse');
+      window.setTimeout(() => sidebarList.classList.remove('mobile-focus-pulse'), 900);
+      return;
+    }
+
     sidebar.scrollTo({
       top: Math.max(0, sidebarList.offsetTop - 42),
+      behavior: 'smooth',
+    });
+  });
+}
+
+function scrollToIndicatorDetail() {
+  const mainView = document.getElementById('mainView');
+  const mainContent = document.querySelector('.main-content');
+  if (!mainView) return;
+
+  requestAnimationFrame(() => {
+    const isMobileLayout = window.matchMedia('(max-width: 900px)').matches;
+
+    if (isMobileLayout) {
+      const top = mainView.getBoundingClientRect().top + window.scrollY - 12;
+      window.scrollTo({
+        top: Math.max(0, top),
+        behavior: 'smooth',
+      });
+      return;
+    }
+
+    if (mainContent && mainContent.scrollHeight > mainContent.clientHeight + 4) {
+      mainContent.scrollTo({
+        top: Math.max(0, mainView.offsetTop - 12),
+        behavior: 'smooth',
+      });
+      return;
+    }
+
+    const top = mainView.getBoundingClientRect().top + window.scrollY - 12;
+    window.scrollTo({
+      top: Math.max(0, top),
       behavior: 'smooth',
     });
   });
@@ -709,6 +751,7 @@ async function selectIndicator(id) {
     document.getElementById('mainEmpty').style.display = 'none';
     document.getElementById('destinationOverview').style.display = 'none';
     document.getElementById('mainView').style.display = 'block';
+    scrollToIndicatorDetail();
   } catch (e) {
     toast('Error cargando el indicador: ' + e.message, 'error');
   }

@@ -221,3 +221,17 @@ Esto permite que indicadores como viajeros, plazas ocupadas o habitaciones ocupa
 ## Navegación pública compacta por árbol
 
 En la vista pública, al seleccionar un destino, la barra lateral se desplaza automáticamente a los indicadores del destino y los muestra agrupados por rama. Las ramas arrancan plegadas para evitar scroll innecesario y el usuario despliega solo el bloque que necesita.
+
+
+## v2.4.7.10 · Responsive móvil
+
+- La vista pública ahora acompaña el flujo móvil: al seleccionar un destino, la pantalla baja automáticamente al árbol de indicadores del destino.
+- El árbol queda plegado por ramas para evitar scroll innecesario.
+- Se ajustaron sidebar, gráficos, tablas y controles para pantallas chicas sin modificar datos ni lógica de Supabase.
+
+## Navegación pública ajustada
+
+- Al ingresar, la vista pública ya no selecciona automáticamente el primer destino.
+- Al seleccionar un destino, la barra lateral baja al árbol de indicadores del destino.
+- Al abrir un indicador, la pantalla se desplaza directamente al dashboard del indicador, tanto en escritorio como en celular.
+

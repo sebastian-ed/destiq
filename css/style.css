@@ -1423,3 +1423,165 @@ input, select, textarea { font-family: inherit; }
     grid-template-columns: 1fr;
   }
 }
+
+
+/* v2.4.7.10 · Ajuste responsive real para vista pública/admin */
+@media (max-width: 900px) {
+  html, body {
+    overflow-x: hidden;
+  }
+
+  .app-shell {
+    display: block;
+    min-height: 100vh;
+  }
+
+  .sidebar {
+    position: relative;
+    top: auto;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    border-right: none;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .sidebar-logo {
+    padding: 18px 16px 14px;
+  }
+
+  .sidebar-section {
+    padding: 14px 16px 8px;
+  }
+
+  .destination-list {
+    max-height: 42vh;
+    overflow-y: auto;
+    padding: 0 10px 8px;
+    border-bottom: 1px solid rgba(30,41,59,.75);
+  }
+
+  .indicator-list {
+    padding: 0 10px 12px;
+    scroll-margin-top: 12px;
+  }
+
+  .indicator-list.mobile-focus-pulse {
+    animation: mobileFocusPulse .9s ease-out;
+  }
+
+  .indicator-tree-title {
+    min-height: 42px;
+  }
+
+  .indicator-item {
+    padding: 11px 10px;
+  }
+
+  .indicator-main {
+    max-width: calc(100vw - 120px);
+  }
+
+  .ind-name,
+  .destination-name {
+    max-width: 100%;
+  }
+
+  .main-content {
+    padding: 18px 12px 28px;
+  }
+
+  .overview-hero h2 {
+    font-size: 24px;
+  }
+
+  .comparison-controls {
+    gap: 14px;
+  }
+
+  .compare-destination-list,
+  .year-filter-list {
+    max-height: 260px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-card,
+  .table-card,
+  .overview-card,
+  .comparison-card,
+  .helper-card,
+  .year-filter-card,
+  .selected-year-stats-card {
+    border-radius: 14px;
+  }
+
+  .chart-wrap {
+    height: 320px;
+  }
+
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 9px 10px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 560px) {
+  .sidebar-logo .logo-badge {
+    font-size: 10px;
+  }
+
+  .sidebar-logo h1 {
+    font-size: 14px;
+  }
+
+  .destination-list {
+    max-height: 36vh;
+  }
+
+  .destination-item,
+  .indicator-item {
+    border-radius: 9px;
+  }
+
+  .destination-count {
+    min-width: 24px;
+    height: 20px;
+    padding: 0 7px;
+  }
+
+  .topbar-actions,
+  .year-filter-actions,
+  .comparison-table-tools {
+    width: 100%;
+  }
+
+  .topbar-actions .btn,
+  .year-filter-actions .btn,
+  .comparison-table-tools .form-control,
+  .comparison-table-tools .btn {
+    width: 100%;
+  }
+
+  .chart-wrap {
+    height: 300px;
+  }
+
+  .month-grid {
+    min-width: 760px;
+  }
+}
+
+@keyframes mobileFocusPulse {
+  0% { box-shadow: 0 0 0 0 rgba(59,130,246,.35); }
+  100% { box-shadow: 0 0 0 14px rgba(59,130,246,0); }
+}
