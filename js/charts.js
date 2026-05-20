@@ -109,7 +109,12 @@ function renderLineChart(canvasId, dataByYear, indicator, dataMetaByYear = {}) {
       scales: {
         x: {
           grid: { color: '#1e293b' },
-          ticks: { color: '#64748b', font: { family: "'DM Sans', sans-serif", size: 11 } },
+          ticks: {
+            color: '#64748b',
+            font: { family: "'DM Sans', sans-serif", size: 11 },
+            autoSkip: true,
+            maxTicksLimit: labels.length > 36 ? 18 : 24,
+          },
         },
         y: {
           grid: { color: '#1e293b' },
@@ -185,6 +190,7 @@ function renderComparisonChart(canvasId, comparisonPayload) {
   if (comparisonChartInstance) comparisonChartInstance.destroy();
 
   const years = comparisonPayload.years || [];
+  const labels = comparisonPayload.labels || years.map(String);
   const seriesCount = (comparisonPayload.series || []).length;
   updateChartDensity(ctx, seriesCount);
   const datasets = (comparisonPayload.series || []).map((serie, index) => {
@@ -206,7 +212,7 @@ function renderComparisonChart(canvasId, comparisonPayload) {
   comparisonChartInstance = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: years.map(String),
+      labels,
       datasets,
     },
     options: {
@@ -239,7 +245,12 @@ function renderComparisonChart(canvasId, comparisonPayload) {
       scales: {
         x: {
           grid: { color: '#1e293b' },
-          ticks: { color: '#64748b', font: { family: "'DM Sans', sans-serif", size: 11 } },
+          ticks: {
+            color: '#64748b',
+            font: { family: "'DM Sans', sans-serif", size: 11 },
+            autoSkip: true,
+            maxTicksLimit: labels.length > 36 ? 18 : 24,
+          },
         },
         y: {
           grid: { color: '#1e293b' },
