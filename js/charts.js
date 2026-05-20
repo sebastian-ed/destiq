@@ -113,7 +113,7 @@ function renderLineChart(canvasId, dataByYear, indicator, dataMetaByYear = {}) {
             color: '#64748b',
             font: { family: "'DM Sans', sans-serif", size: 11 },
             autoSkip: true,
-            maxTicksLimit: labels.length > 36 ? 18 : 24,
+            maxTicksLimit: MONTHS.length,
           },
         },
         y: {
@@ -249,7 +249,7 @@ function renderComparisonChart(canvasId, comparisonPayload) {
             color: '#64748b',
             font: { family: "'DM Sans', sans-serif", size: 11 },
             autoSkip: true,
-            maxTicksLimit: labels.length > 36 ? 18 : 24,
+            maxTicksLimit: MONTHS.length,
           },
         },
         y: {
