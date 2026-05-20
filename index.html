@@ -170,8 +170,6 @@
         <div id="yearFilterList" class="year-filter-list"></div>
       </div>
 
-      <div class="kpi-grid" id="kpiGrid"></div>
-
       <div class="charts-grid">
         <div class="chart-card">
           <div class="chart-card-header">
@@ -190,6 +188,8 @@
           <div class="chart-wrap" id="barChartWrap"><canvas id="barChart"></canvas></div>
         </div>
       </div>
+
+      <div class="kpi-grid" id="kpiGrid"></div>
 
       <div class="table-card">
         <div class="table-card-header">
@@ -1414,6 +1414,11 @@ function getComparisonMeasureOptions(payload = null) {
       help: 'Promedio simple de los meses cargados dentro de cada año.',
     },
     {
+      value: 'monthly_history',
+      label: 'Evolución mensual histórica',
+      help: 'Muestra todos los meses cargados de la serie histórica, sin resumirlos a valores anuales.',
+    },
+    {
       value: 'median',
       label: 'Mediana mensual',
       help: 'Valor central del año. Útil cuando hay meses atípicos.',
@@ -1441,7 +1446,38 @@ function getComparisonMeasureMeta(measure, payload = null) {
   return options.find(option => option.value === measure) || options[0];
 }
 
+function isMonthlyComparisonMode(measure = comparisonTableSort.measure) {
+  return measure === 'monthly_history';
+}
+
+function getComparisonMonthlyPeriods(payload = currentComparisonTablePayload) {
+  const periodKeys = new Set();
+  (payload?.series || []).forEach(item => {
+    const byYear = item?.dataByYear || {};
+    Object.keys(byYear).forEach(year => {
+      (byYear[year] || []).forEach((value, monthIndex) => {
+        if (value === null || value === undefined || isNaN(Number(value))) return;
+        periodKeys.add(`${year}-${String(monthIndex + 1).padStart(2, '0')}`);
+      });
+    });
+  });
+  return [...periodKeys].sort((a, b) => a.localeCompare(b));
+}
+
+function formatComparisonPeriodLabel(periodKey) {
+  const [year, month] = String(periodKey || '').split('-');
+  const monthName = MONTHS[Number(month) - 1] || month || '';
+  return `${monthName.slice(0, 3)} ${year}`;
+}
+
+function getComparisonMonthlyValue(item, periodKey) {
+  const [year, month] = String(periodKey || '').split('-');
+  const value = item?.dataByYear?.[Number(year)]?.[Number(month) - 1];
+  return value === null || value === undefined || isNaN(Number(value)) ? null : Number(value);
+}
+
 function getComparisonMeasureValue(item, year, measure = comparisonTableSort.measure) {
+  if (isMonthlyComparisonMode(measure)) return null;
   if (!year) return null;
   const stats = item?.yearlyStats?.[Number(year)];
   if (!stats) return null;
@@ -1465,12 +1501,20 @@ function resetComparisonTableSortForYears(years = [], payload = null) {
   if (!availableMeasures.has(comparisonTableSort.measure)) {
     comparisonTableSort.measure = 'annualValue';
   }
+  if (isMonthlyComparisonMode(comparisonTableSort.measure)) {
+    comparisonTableSort.year = '';
+    comparisonTableSort.direction = 'original';
+  }
 }
 
 function handleComparisonSortChange() {
   comparisonTableSort.measure = document.getElementById('comparisonMeasure')?.value || 'annualValue';
   comparisonTableSort.year = document.getElementById('comparisonSortYear')?.value || '';
   comparisonTableSort.direction = document.getElementById('comparisonSortDirection')?.value || 'original';
+  if (isMonthlyComparisonMode(comparisonTableSort.measure)) {
+    comparisonTableSort.year = '';
+    comparisonTableSort.direction = 'original';
+  }
   if (!comparisonTableSort.year) comparisonTableSort.direction = 'original';
   renderComparisonTable();
   renderComparisonChartFromPayload();
@@ -1489,6 +1533,7 @@ function renderComparisonTableSortControls(payload) {
 
   const measures = getComparisonMeasureOptions(payload);
   const activeMeasure = getComparisonMeasureMeta(comparisonTableSort.measure, payload);
+  const monthlyMode = isMonthlyComparisonMode(comparisonTableSort.measure);
 
   controls.style.display = 'flex';
   controls.innerHTML = `
@@ -1498,21 +1543,23 @@ function renderComparisonTableSortControls(payload) {
         ${measures.map(option => `<option value="${option.value}" ${comparisonTableSort.measure === option.value ? 'selected' : ''}>${escapeHtml(option.label)}</option>`).join('')}
       </select>
     </div>
-    <div class="comparison-sort-field">
-      <label class="form-label">Año de referencia</label>
-      <select id="comparisonSortYear" class="form-control comparison-sort-select" onchange="handleComparisonSortChange()">
-        <option value="" ${comparisonTableSort.year ? '' : 'selected'}>Sin año específico</option>
-        ${years.map(year => `<option value="${year}" ${String(comparisonTableSort.year) === String(year) ? 'selected' : ''}>${year}</option>`).join('')}
-      </select>
-    </div>
-    <div class="comparison-sort-field">
-      <label class="form-label">Criterio</label>
-      <select id="comparisonSortDirection" class="form-control comparison-sort-select" onchange="handleComparisonSortChange()" ${comparisonTableSort.year ? '' : 'disabled'}>
-        <option value="original" ${comparisonTableSort.direction === 'original' ? 'selected' : ''}>Orden original</option>
-        <option value="desc" ${comparisonTableSort.direction === 'desc' ? 'selected' : ''}>Mayor a menor</option>
-        <option value="asc" ${comparisonTableSort.direction === 'asc' ? 'selected' : ''}>Menor a mayor</option>
-      </select>
-    </div>
+    ${monthlyMode ? '' : `
+      <div class="comparison-sort-field">
+        <label class="form-label">Año de referencia</label>
+        <select id="comparisonSortYear" class="form-control comparison-sort-select" onchange="handleComparisonSortChange()">
+          <option value="" ${comparisonTableSort.year ? '' : 'selected'}>Sin año específico</option>
+          ${years.map(year => `<option value="${year}" ${String(comparisonTableSort.year) === String(year) ? 'selected' : ''}>${year}</option>`).join('')}
+        </select>
+      </div>
+      <div class="comparison-sort-field">
+        <label class="form-label">Criterio</label>
+        <select id="comparisonSortDirection" class="form-control comparison-sort-select" onchange="handleComparisonSortChange()" ${comparisonTableSort.year ? '' : 'disabled'}>
+          <option value="original" ${comparisonTableSort.direction === 'original' ? 'selected' : ''}>Orden original</option>
+          <option value="desc" ${comparisonTableSort.direction === 'desc' ? 'selected' : ''}>Mayor a menor</option>
+          <option value="asc" ${comparisonTableSort.direction === 'asc' ? 'selected' : ''}>Menor a mayor</option>
+        </select>
+      </div>
+    `}
     <div class="comparison-measure-note">${escapeHtml(activeMeasure.help)}</div>
   `;
 }
@@ -1543,8 +1590,15 @@ function getSortedComparisonSeries(payload) {
 }
 
 function buildComparisonChartSeries(payload) {
-  const years = payload?.years || [];
   const sortedSeries = getSortedComparisonSeries(payload);
+  if (isMonthlyComparisonMode()) {
+    const periods = getComparisonMonthlyPeriods(payload);
+    return sortedSeries.map(item => ({
+      label: item.destinationName,
+      values: periods.map(period => getComparisonMonthlyValue(item, period)),
+    }));
+  }
+  const years = payload?.years || [];
   return sortedSeries.map(item => ({
     label: item.destinationName,
     values: years.map(year => getComparisonMeasureValue(item, year, comparisonTableSort.measure)),
@@ -1556,22 +1610,52 @@ function renderComparisonChartFromPayload(payload = currentComparisonTablePayloa
   resetComparisonTableSortForYears(payload.years || [], payload);
   const activeMeasure = getComparisonMeasureMeta(comparisonTableSort.measure, payload);
   const metricName = payload.indicatorName || payload.series?.[0]?.indicator?.name || 'Indicador';
+  const monthlyMode = isMonthlyComparisonMode();
+  const periods = monthlyMode ? getComparisonMonthlyPeriods(payload) : [];
   renderComparisonChart('comparisonChart', {
-    years: payload.years || [],
+    years: monthlyMode ? [] : (payload.years || []),
+    labels: monthlyMode ? periods.map(formatComparisonPeriodLabel) : null,
     series: buildComparisonChartSeries(payload),
     unit: payload.unit || '',
     measureLabel: activeMeasure.label,
   });
   const titleEl = document.getElementById('compareChartTitle');
   const noteEl = document.getElementById('compareChartNote');
-  if (titleEl) titleEl.textContent = `${metricName} · comparación entre destinos`;
+  if (titleEl) titleEl.textContent = monthlyMode ? `${metricName} · evolución mensual histórica` : `${metricName} · comparación entre destinos`;
   if (noteEl) noteEl.textContent = activeMeasure.label;
+}
+
+function renderMonthlyComparisonTable(payload, table) {
+  const periods = getComparisonMonthlyPeriods(payload);
+  const sortedSeries = getSortedComparisonSeries(payload);
+  const activeMeasure = getComparisonMeasureMeta(comparisonTableSort.measure, payload);
+  renderComparisonTableSortControls(payload);
+
+  if (!periods.length) {
+    table.innerHTML = '<tbody><tr><td>No hay datos mensuales cargados para esta comparación.</td></tr></tbody>';
+    return;
+  }
+
+  const header = `<thead><tr><th>Destino</th>${periods.map(period => `<th>${escapeHtml(formatComparisonPeriodLabel(period))}</th>`).join('')}</tr></thead>`;
+  const rows = sortedSeries.map(item => `
+    <tr>
+      <td>${escapeHtml(item.destinationName)}</td>
+      ${periods.map(period => `<td title="${escapeHtml(activeMeasure.label)} · ${escapeHtml(formatComparisonPeriodLabel(period))}">${formatNumber(getComparisonMonthlyValue(item, period))}</td>`).join('')}
+    </tr>
+  `).join('');
+
+  table.innerHTML = header + `<tbody>${rows}</tbody>`;
 }
 
 function renderComparisonTable() {
   const payload = currentComparisonTablePayload;
   const table = document.getElementById('comparisonTable');
   if (!payload || !table) return;
+
+  if (isMonthlyComparisonMode()) {
+    renderMonthlyComparisonTable(payload, table);
+    return;
+  }
 
   const years = payload.years || [];
   const sortedSeries = getSortedComparisonSeries(payload);
@@ -1637,6 +1721,7 @@ async function runComparison() {
       series.push({
         indicator,
         destinationName: indicator.destination?.name || 'Sin destino',
+        dataByYear,
         yearlyStats,
         annualSeries,
       });
