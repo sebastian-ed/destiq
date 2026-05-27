@@ -719,38 +719,57 @@ function getYearStatsSortValue(row, key) {
   }
 }
 
+
+function getYearStatsColumnDefinitions(tableKey, annualMeta) {
+  return [
+    { key: 'year', label: 'Año', align: 'left' },
+    { key: 'annual', label: annualMeta.shortLabel },
+    { key: 'mean', label: 'Promedio mensual' },
+    { key: 'median', label: 'Mediana' },
+    { key: 'max', label: 'Máximo' },
+    { key: 'min', label: 'Mínimo' },
+    { key: 'stdDev', label: 'Desvío Std' },
+    { key: 'yoy', label: 'Var. interanual' },
+  ].map(def => ({ ...def, header: renderSortableHeader(tableKey, def.key, def.label, { align: def.align }) }));
+}
+
+function getFocusedYearStatsColumnKey(tableKey) {
+  const state = individualTableSortState?.[tableKey];
+  if (!state || state.direction === 'original' || state.key === 'year') return '';
+  return state.key;
+}
+
+function renderYearStatsValueCell(row, key) {
+  const s = row.stats || {};
+  if (key === 'year') return `<td><strong>${row.year}</strong></td>`;
+  if (key === 'annual') return `<td>${formatNumber(s?.annualValue)}</td>`;
+  if (key === 'mean') return `<td>${formatNumber(s?.mean)}</td>`;
+  if (key === 'median') return `<td>${formatNumber(s?.median)}</td>`;
+  if (key === 'max') return `<td>${formatNumber(s?.max)}</td>`;
+  if (key === 'min') return `<td>${formatNumber(s?.min)}</td>`;
+  if (key === 'stdDev') return `<td>${formatNumber(s?.stdDev)}</td>`;
+  if (key === 'yoy') {
+    const yoy = s?.yoyAnnual;
+    return `<td class="${yoy !== undefined && yoy !== null ? (yoy >= 0 ? 'positive' : 'negative') : ''}">${yoy !== undefined && yoy !== null ? formatPct(yoy) : '-'}</td>`;
+  }
+  return '<td>-</td>';
+}
+
+function getVisibleYearStatsColumns(tableKey, annualMeta) {
+  return getYearStatsColumnDefinitions(tableKey, annualMeta);
+}
+
 function renderYearStatsTable(years, yearlyStats, annualMeta) {
   const head = document.getElementById('statsHead');
   const body = document.getElementById('statsBody');
   if (!head || !body) return;
 
-  head.innerHTML = `<tr>
-    ${renderSortableHeader('yearlyStats', 'year', 'Año', { align: 'left' })}
-    ${renderSortableHeader('yearlyStats', 'annual', annualMeta.shortLabel)}
-    ${renderSortableHeader('yearlyStats', 'mean', 'Promedio mensual')}
-    ${renderSortableHeader('yearlyStats', 'median', 'Mediana')}
-    ${renderSortableHeader('yearlyStats', 'min', 'Mínimo')}
-    ${renderSortableHeader('yearlyStats', 'max', 'Máximo')}
-    ${renderSortableHeader('yearlyStats', 'stdDev', 'Desvío Std')}
-    ${renderSortableHeader('yearlyStats', 'yoy', 'Var. interanual')}
-  </tr>`;
+  const columns = getVisibleYearStatsColumns('yearlyStats', annualMeta);
+  head.innerHTML = `<tr>${columns.map(column => column.header).join('')}</tr>`;
 
   const rows = (years || []).map((year, index) => ({ year, stats: yearlyStats?.[year] || {}, originalIndex: index }));
   const sortedRows = sortRowsWithState(rows, individualTableSortState.yearlyStats, getYearStatsSortValue);
-  body.innerHTML = sortedRows.map(row => {
-    const s = row.stats;
-    const yoy = s?.yoyAnnual;
-    return `<tr>
-      <td><strong>${row.year}</strong></td>
-      <td>${formatNumber(s?.annualValue)}</td>
-      <td>${formatNumber(s?.mean)}</td>
-      <td>${formatNumber(s?.median)}</td>
-      <td>${formatNumber(s?.min)}</td>
-      <td>${formatNumber(s?.max)}</td>
-      <td>${formatNumber(s?.stdDev)}</td>
-      <td class="${yoy !== undefined && yoy !== null ? (yoy >= 0 ? 'positive' : 'negative') : ''}">${yoy !== undefined && yoy !== null ? formatPct(yoy) : '-'}</td>
-    </tr>`;
-  }).join('');
+  body.innerHTML = sortedRows.map(row => `<tr>${columns.map(column => renderYearStatsValueCell(row, column.key)).join('')}</tr>`).join('');
 }
 
 function getMonthlySortValue(row, key) {
@@ -767,14 +786,15 @@ function renderMonthlyDataTable(years) {
   if (!mt) return;
   const rows = MONTHS.map((monthName, monthIndex) => ({ monthName, monthIndex, originalIndex: monthIndex }));
   const sortedRows = sortRowsWithState(rows, individualTableSortState.monthlyData, getMonthlySortValue);
+  const visibleColumns = years || [];
   const header = `<thead><tr>
     ${renderSortableHeader('monthlyData', 'month', 'Mes', { align: 'left' })}
-    ${(years || []).map(year => renderSortableHeader('monthlyData', `year:${year}`, String(year))).join('')}
+    ${visibleColumns.map(year => renderSortableHeader('monthlyData', `year:${year}`, String(year))).join('')}
   </tr></thead>`;
   const bodyRows = sortedRows.map(row => `
     <tr>
       <td>${escapeHtml(row.monthName)}</td>
-      ${(years || []).map(year => renderMonthlyDataCell(currentDataByYear[year]?.[row.monthIndex], currentDataMetaByYear?.[year]?.[row.monthIndex])).join('')}
+      ${visibleColumns.map(year => renderMonthlyDataCell(currentDataByYear[year]?.[row.monthIndex], currentDataMetaByYear?.[year]?.[row.monthIndex])).join('')}
     </tr>
   `).join('');
   mt.innerHTML = header + `<tbody>${bodyRows}</tbody>`;
@@ -933,23 +953,9 @@ function renderSelectedYearStatsTable(selectedYears, yearlyStats, annualMeta) {
     stats: yearlyStats?.[year] || {},
     originalIndex: index,
   }));
+  const columns = getVisibleYearStatsColumns('selectedYears', annualMeta);
   const sortedRows = sortRowsWithState(rows, individualTableSortState.selectedYears, getYearStatsSortValue);
-  const rowHtml = sortedRows.map(row => {
-    const stats = row.stats;
-    const yoy = stats?.yoyAnnual;
-    return `
-      <tr>
-        <td><strong>${row.year}</strong></td>
-        <td>${formatNumber(stats?.annualValue)}</td>
-        <td>${formatNumber(stats?.mean)}</td>
-        <td>${formatNumber(stats?.median)}</td>
-        <td>${formatNumber(stats?.max)}</td>
-        <td>${formatNumber(stats?.min)}</td>
-        <td>${formatNumber(stats?.stdDev)}</td>
-        <td class="${yoy !== undefined && yoy !== null ? (yoy >= 0 ? 'positive' : 'negative') : ''}">${yoy !== undefined && yoy !== null ? formatPct(yoy) : '-'}</td>
-      </tr>
-    `;
-  }).join('');
+  const rowHtml = sortedRows.map(row => `<tr>${columns.map(column => renderYearStatsValueCell(row, column.key)).join('')}</tr>`).join('');
 
   return `
     <div class="selected-year-stats-card kpi-grid-full">
@@ -963,16 +969,7 @@ function renderSelectedYearStatsTable(selectedYears, yearlyStats, annualMeta) {
       <div class="selected-year-stats-table-wrap">
         <table class="data-table selected-year-stats-table">
           <thead>
-            <tr>
-              ${renderSortableHeader('selectedYears', 'year', 'Año', { align: 'left' })}
-              ${renderSortableHeader('selectedYears', 'annual', annualMeta.shortLabel)}
-              ${renderSortableHeader('selectedYears', 'mean', 'Promedio mensual')}
-              ${renderSortableHeader('selectedYears', 'median', 'Mediana')}
-              ${renderSortableHeader('selectedYears', 'max', 'Máximo')}
-              ${renderSortableHeader('selectedYears', 'min', 'Mínimo')}
-              ${renderSortableHeader('selectedYears', 'stdDev', 'Desvío Std')}
-              ${renderSortableHeader('selectedYears', 'yoy', 'Var. interanual')}
-            </tr>
+            <tr>${columns.map(column => column.header).join('')}</tr>
           </thead>
           <tbody>${rowHtml}</tbody>
         </table>
