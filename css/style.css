@@ -1623,3 +1623,46 @@ input, select, textarea { font-family: inherit; }
     width: 100%;
   }
 }
+
+/* Sortable analytical tables */
+.sortable-th {
+  padding: 0 !important;
+  vertical-align: middle;
+}
+.sortable-th-btn {
+  width: 100%;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 10px 14px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: inherit;
+}
+.sortable-th-left .sortable-th-btn {
+  justify-content: flex-start;
+}
+.sortable-th-btn:hover,
+.sortable-th.active .sortable-th-btn {
+  color: var(--accent);
+  background: rgba(59,130,246,.06);
+}
+.sort-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: rgba(59,130,246,.08);
+  color: var(--accent);
+  font-size: 10px;
+  line-height: 1;
+}
