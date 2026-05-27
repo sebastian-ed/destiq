@@ -20,6 +20,7 @@ let comparisonSelection = { metricKey: '', destinationIds: [] };
 let currentComparisonTablePayload = null;
 let comparisonTableSort = { year: '', direction: 'original', measure: 'annualValue' };
 let comparisonVisibleYears = [];
+let comparisonZoomState = { signature: '', start: 0, span: null };
 const groupCollapseState = { sidebar: {}, center: {} };
 let dragState = { indicatorId: '', destinationId: '' };
 let groupDragState = { destinationId: '', groupTitle: '' };
@@ -1875,6 +1876,9 @@ function clearComparisonResults() {
   destroyComparisonChart();
   currentComparisonTablePayload = null;
   comparisonVisibleYears = [];
+  comparisonZoomState = { signature: '', start: 0, span: null };
+  const zoomControls = document.getElementById('comparisonZoomControls');
+  if (zoomControls) { zoomControls.style.display = 'none'; zoomControls.innerHTML = ''; }
   const sortControls = document.getElementById('comparisonTableSortControls');
   if (sortControls) sortControls.style.display = 'none';
   document.getElementById('compareEmpty').style.display = 'block';
@@ -2035,6 +2039,144 @@ function getComparisonMonthlyValue(item, periodKey) {
   return value === null || value === undefined || isNaN(Number(value)) ? null : Number(value);
 }
 
+
+function getComparisonZoomSignature(labels, payload = currentComparisonTablePayload) {
+  const seriesNames = (payload?.series || []).map(item => item.destinationName || '').join('|');
+  return `${labels.length}|${labels[0] || ''}|${labels[labels.length - 1] || ''}|${seriesNames}`;
+}
+
+function resetComparisonZoom(labels = []) {
+  comparisonZoomState = {
+    signature: getComparisonZoomSignature(labels),
+    start: 0,
+    span: labels.length || null,
+  };
+}
+
+function clampComparisonZoom(total) {
+  if (!total) {
+    comparisonZoomState.start = 0;
+    comparisonZoomState.span = null;
+    return;
+  }
+  const minSpan = Math.min(6, total);
+  let span = Number(comparisonZoomState.span);
+  if (!Number.isFinite(span) || span < minSpan) span = total;
+  span = Math.max(minSpan, Math.min(total, Math.round(span)));
+  let start = Number(comparisonZoomState.start);
+  if (!Number.isFinite(start)) start = 0;
+  start = Math.max(0, Math.min(total - span, Math.round(start)));
+  comparisonZoomState.span = span;
+  comparisonZoomState.start = start;
+}
+
+function getComparisonZoomWindow(labels = []) {
+  const total = labels.length;
+  const signature = getComparisonZoomSignature(labels);
+  if (comparisonZoomState.signature !== signature) {
+    resetComparisonZoom(labels);
+  }
+  clampComparisonZoom(total);
+  const start = comparisonZoomState.start || 0;
+  const span = comparisonZoomState.span || total;
+  return {
+    start,
+    end: Math.min(total, start + span),
+    span,
+    total,
+    isZoomed: total > 0 && span < total,
+  };
+}
+
+function applyComparisonZoomToSeries(labels, series) {
+  const windowInfo = getComparisonZoomWindow(labels);
+  if (!windowInfo.isZoomed) {
+    return { labels, series, windowInfo };
+  }
+  const slicedLabels = labels.slice(windowInfo.start, windowInfo.end);
+  const slicedSeries = (series || []).map(item => ({
+    ...item,
+    values: (item.values || []).slice(windowInfo.start, windowInfo.end),
+  }));
+  return { labels: slicedLabels, series: slicedSeries, windowInfo };
+}
+
+function renderComparisonZoomControls(labels = [], monthlyMode = isMonthlyComparisonMode()) {
+  const controls = document.getElementById('comparisonZoomControls');
+  if (!controls) return;
+  if (!monthlyMode || labels.length <= 18) {
+    controls.style.display = 'none';
+    controls.innerHTML = '';
+    return;
+  }
+  const windowInfo = getComparisonZoomWindow(labels);
+  const firstLabel = labels[windowInfo.start] || '';
+  const lastLabel = labels[Math.max(windowInfo.end - 1, 0)] || '';
+  const maxStart = Math.max(0, windowInfo.total - windowInfo.span);
+  controls.style.display = 'flex';
+  controls.innerHTML = `
+    <div class="comparison-zoom-main">
+      <span class="comparison-zoom-label">Zoom del gráfico</span>
+      <button class="btn btn-secondary btn-sm" type="button" onclick="moveComparisonZoom(-1)" ${windowInfo.start <= 0 ? 'disabled' : ''}>←</button>
+      <button class="btn btn-secondary btn-sm" type="button" onclick="changeComparisonZoom(1)">+ Zoom</button>
+      <button class="btn btn-secondary btn-sm" type="button" onclick="changeComparisonZoom(-1)" ${!windowInfo.isZoomed ? 'disabled' : ''}>− Zoom</button>
+      <button class="btn btn-ghost btn-sm" type="button" onclick="resetComparisonZoomAndRender()" ${!windowInfo.isZoomed && windowInfo.start === 0 ? 'disabled' : ''}>Ver todo</button>
+      <button class="btn btn-secondary btn-sm" type="button" onclick="moveComparisonZoom(1)" ${windowInfo.end >= windowInfo.total ? 'disabled' : ''}>→</button>
+    </div>
+    <div class="comparison-zoom-range-wrap">
+      <input class="comparison-zoom-range" type="range" min="0" max="${maxStart}" value="${windowInfo.start}" ${maxStart <= 0 ? 'disabled' : ''} oninput="setComparisonZoomStart(this.value)"/>
+      <span class="comparison-zoom-info">${escapeHtml(firstLabel)} – ${escapeHtml(lastLabel)} · ${windowInfo.end - windowInfo.start} de ${windowInfo.total} meses</span>
+    </div>
+  `;
+}
+
+function rerenderComparisonChartOnly() {
+  renderComparisonChartFromPayload(currentComparisonTablePayload);
+}
+
+function changeComparisonZoom(direction) {
+  const payload = currentComparisonTablePayload;
+  if (!payload || !isMonthlyComparisonMode()) return;
+  const labels = getComparisonMonthlyPeriods(payload, getComparisonVisibleYears(payload)).map(formatComparisonPeriodLabel);
+  const windowInfo = getComparisonZoomWindow(labels);
+  if (!windowInfo.total) return;
+  const center = windowInfo.start + windowInfo.span / 2;
+  const minSpan = Math.min(6, windowInfo.total);
+  const factor = direction > 0 ? 0.6 : 1.6;
+  const nextSpan = Math.max(minSpan, Math.min(windowInfo.total, Math.round(windowInfo.span * factor)));
+  comparisonZoomState.span = nextSpan;
+  comparisonZoomState.start = Math.max(0, Math.min(windowInfo.total - nextSpan, Math.round(center - nextSpan / 2)));
+  rerenderComparisonChartOnly();
+}
+
+function moveComparisonZoom(direction) {
+  const payload = currentComparisonTablePayload;
+  if (!payload || !isMonthlyComparisonMode()) return;
+  const labels = getComparisonMonthlyPeriods(payload, getComparisonVisibleYears(payload)).map(formatComparisonPeriodLabel);
+  const windowInfo = getComparisonZoomWindow(labels);
+  const step = Math.max(1, Math.round(windowInfo.span * 0.5));
+  comparisonZoomState.start = Math.max(0, Math.min(windowInfo.total - windowInfo.span, windowInfo.start + (direction * step)));
+  rerenderComparisonChartOnly();
+}
+
+function setComparisonZoomStart(value) {
+  const payload = currentComparisonTablePayload;
+  if (!payload || !isMonthlyComparisonMode()) return;
+  const labels = getComparisonMonthlyPeriods(payload, getComparisonVisibleYears(payload)).map(formatComparisonPeriodLabel);
+  const windowInfo = getComparisonZoomWindow(labels);
+  comparisonZoomState.start = Math.max(0, Math.min(windowInfo.total - windowInfo.span, Number(value) || 0));
+  rerenderComparisonChartOnly();
+}
+
+function resetComparisonZoomAndRender() {
+  const payload = currentComparisonTablePayload;
+  const labels = payload && isMonthlyComparisonMode()
+    ? getComparisonMonthlyPeriods(payload, getComparisonVisibleYears(payload)).map(formatComparisonPeriodLabel)
+    : [];
+  resetComparisonZoom(labels);
+  rerenderComparisonChartOnly();
+}
+
 function getComparisonMeasureValue(item, year, measure = comparisonTableSort.measure) {
   if (isMonthlyComparisonMode(measure)) return null;
   if (!year) return null;
@@ -2068,7 +2210,9 @@ function resetComparisonTableSortForYears(years = [], payload = null) {
 }
 
 function handleComparisonSortChange() {
+  const previousMeasure = comparisonTableSort.measure;
   comparisonTableSort.measure = document.getElementById('comparisonMeasure')?.value || 'annualValue';
+  if (previousMeasure !== comparisonTableSort.measure) comparisonZoomState = { signature: '', start: 0, span: null };
   comparisonTableSort.year = document.getElementById('comparisonSortYear')?.value || '';
   comparisonTableSort.direction = document.getElementById('comparisonSortDirection')?.value || 'original';
   if (isMonthlyComparisonMode(comparisonTableSort.measure)) {
@@ -2175,10 +2319,16 @@ function renderComparisonChartFromPayload(payload = currentComparisonTablePayloa
   const metricName = payload.indicatorName || payload.series?.[0]?.indicator?.name || 'Indicador';
   const monthlyMode = isMonthlyComparisonMode();
   const periods = monthlyMode ? getComparisonMonthlyPeriods(payload, visibleYears) : [];
+  const rawChartLabels = monthlyMode ? periods.map(formatComparisonPeriodLabel) : visibleYears.map(String);
+  const rawChartSeries = buildComparisonChartSeries(payload);
+  const zoomedChart = monthlyMode
+    ? applyComparisonZoomToSeries(rawChartLabels, rawChartSeries)
+    : { labels: rawChartLabels, series: rawChartSeries };
+  renderComparisonZoomControls(rawChartLabels, monthlyMode);
   renderComparisonChart('comparisonChart', {
     years: monthlyMode ? [] : visibleYears,
-    labels: monthlyMode ? periods.map(formatComparisonPeriodLabel) : null,
-    series: buildComparisonChartSeries(payload),
+    labels: zoomedChart.labels,
+    series: zoomedChart.series,
     unit: payload.unit || '',
     measureLabel: activeMeasure.label,
   });

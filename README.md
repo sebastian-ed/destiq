@@ -235,3 +235,20 @@ En la vista pública, al seleccionar un destino, la barra lateral se desplaza au
 - Al seleccionar un destino, la barra lateral baja al árbol de indicadores del destino.
 - Al abrir un indicador, la pantalla se desplaza directamente al dashboard del indicador, tanto en escritorio como en celular.
 
+
+## Ranking territorial por indicador
+
+La vista pública incluye una sección independiente para generar rankings territoriales por indicador.
+
+Permite elegir:
+- indicador comparable
+- año específico o serie completa
+- orden mayor a menor / menor a mayor
+- exclusión de agregados territoriales como Total País y Regiones
+
+El ranking respeta la regla anual configurada en cada indicador: suma, promedio, último valor, máximos/mínimos o ratio recalculado por numerador y denominador.
+
+
+## Zoom en comparación mensual histórica
+
+La vista de comparación mensual histórica incluye controles de zoom manual para analizar series largas sin perder el gráfico completo. Permite acercar, alejar, desplazarse por la serie y volver a ver todo.
