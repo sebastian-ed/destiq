@@ -197,19 +197,8 @@
           <span class="badge badge-green" id="statsUnit"></span>
         </div>
         <div style="overflow-x:auto">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Año</th>
-                <th id="statsAnnualHeader">Total</th>
-                <th>Promedio mensual</th>
-                <th>Mediana</th>
-                <th>Mínimo</th>
-                <th>Máximo</th>
-                <th>Desvío Std</th>
-                <th>Var. interanual</th>
-              </tr>
-            </thead>
+          <table class="data-table" id="yearStatsTable">
+            <thead id="statsHead"></thead>
             <tbody id="statsBody"></tbody>
           </table>
         </div>
@@ -255,8 +244,14 @@ let visibleYears = [];
 let comparisonSelection = { metricKey: '', destinationIds: [] };
 let currentComparisonTablePayload = null;
 let comparisonTableSort = { year: '', direction: 'original', measure: 'annualValue' };
+let comparisonVisibleYears = [];
 const groupCollapseState = { sidebar: {}, center: {} };
 const overviewScrollState = {};
+const individualTableSortState = {
+  selectedYears: { key: 'year', direction: 'original' },
+  yearlyStats: { key: 'year', direction: 'original' },
+  monthlyData: { key: 'month', direction: 'original' },
+};
 
 function getIndicatorSortOrder(indicator) {
   const value = Number(indicator?.sort_order);
@@ -768,7 +763,8 @@ function renderDashboard() {
   document.getElementById('yearsCount').textContent = shownYears.length === years.length
     ? years.length + ' año' + (years.length !== 1 ? 's' : '')
     : shownYears.length + ' de ' + years.length + ' año' + (years.length !== 1 ? 's' : '');
-  document.getElementById('statsAnnualHeader').textContent = annualMeta.shortLabel;
+  const statsAnnualHeaderEl = document.getElementById('statsAnnualHeader');
+  if (statsAnnualHeaderEl) statsAnnualHeaderEl.textContent = annualMeta.shortLabel;
   document.getElementById('annualChartTitle').textContent = annualMeta.shortLabel;
   document.getElementById('annualChartNote').textContent = currentIndicator.annual_chart_visible === false ? 'Oculto por configuración' : annualMeta.description;
   document.getElementById('annualCalcBadge').textContent = annualMeta.label;
@@ -860,11 +856,124 @@ function renderDashboard() {
     }
   }
 
-  document.getElementById('statsBody').innerHTML = years.map(yr => {
-    const s = currentYearlyStats[yr];
+  renderYearStatsTable(years, currentYearlyStats, annualMeta);
+  renderMonthlyDataTable(years);
+}
+
+
+
+function getNextSortDirection(currentDirection, sameColumn) {
+  if (!sameColumn) return 'asc';
+  if (currentDirection === 'asc') return 'desc';
+  if (currentDirection === 'desc') return 'original';
+  return 'asc';
+}
+
+function setIndividualTableSort(tableKey, sortKey) {
+  const state = individualTableSortState[tableKey];
+  if (!state) return;
+  const sameColumn = state.key === sortKey;
+  state.direction = getNextSortDirection(state.direction, sameColumn);
+  state.key = sortKey;
+  renderDashboard();
+}
+
+function getIndividualSortIndicator(tableKey, sortKey) {
+  const state = individualTableSortState[tableKey];
+  if (!state || state.key !== sortKey || state.direction === 'original') return '↕';
+  return state.direction === 'asc' ? '↑' : '↓';
+}
+
+function renderSortableHeader(tableKey, sortKey, label, options = {}) {
+  const alignClass = options.align === 'left' ? ' sortable-th-left' : '';
+  const active = individualTableSortState?.[tableKey]?.key === sortKey && individualTableSortState?.[tableKey]?.direction !== 'original';
+  return `
+    <th class="sortable-th${alignClass}${active ? ' active' : ''}">
+      <button type="button" class="sortable-th-btn" onclick="setIndividualTableSort('${tableKey}', '${escapeJs(sortKey)}')" title="Ordenar por ${escapeHtml(label)}">
+        <span>${escapeHtml(label)}</span>
+        <span class="sort-indicator">${getIndividualSortIndicator(tableKey, sortKey)}</span>
+      </button>
+    </th>
+  `;
+}
+
+function isSortableValueMissing(value) {
+  return value === null || value === undefined || value === '' || (typeof value === 'number' && isNaN(value));
+}
+
+function normalizeSortableValue(value) {
+  if (isSortableValueMissing(value)) return null;
+  if (typeof value === 'number') return value;
+  const numeric = Number(value);
+  if (!isNaN(numeric)) return numeric;
+  return String(value || '').toLowerCase();
+}
+
+function compareSortableValues(a, b, direction) {
+  const av = normalizeSortableValue(a);
+  const bv = normalizeSortableValue(b);
+  const aMissing = av === null;
+  const bMissing = bv === null;
+  if (aMissing && bMissing) return 0;
+  if (aMissing) return 1;
+  if (bMissing) return -1;
+  let result;
+  if (typeof av === 'number' && typeof bv === 'number') {
+    result = av - bv;
+  } else {
+    result = String(av).localeCompare(String(bv), 'es', { numeric: true, sensitivity: 'base' });
+  }
+  return direction === 'desc' ? -result : result;
+}
+
+function sortRowsWithState(rows, state, valueGetter) {
+  const safeRows = [...(rows || [])];
+  if (!state || state.direction === 'original') {
+    return safeRows.sort((a, b) => a.originalIndex - b.originalIndex);
+  }
+  return safeRows.sort((a, b) => {
+    const result = compareSortableValues(valueGetter(a, state.key), valueGetter(b, state.key), state.direction);
+    return result !== 0 ? result : a.originalIndex - b.originalIndex;
+  });
+}
+
+function getYearStatsSortValue(row, key) {
+  switch (key) {
+    case 'year': return row.year;
+    case 'annual': return row.stats?.annualValue;
+    case 'mean': return row.stats?.mean;
+    case 'median': return row.stats?.median;
+    case 'max': return row.stats?.max;
+    case 'min': return row.stats?.min;
+    case 'stdDev': return row.stats?.stdDev;
+    case 'yoy': return row.stats?.yoyAnnual;
+    default: return row.year;
+  }
+}
+
+function renderYearStatsTable(years, yearlyStats, annualMeta) {
+  const head = document.getElementById('statsHead');
+  const body = document.getElementById('statsBody');
+  if (!head || !body) return;
+
+  head.innerHTML = `<tr>
+    ${renderSortableHeader('yearlyStats', 'year', 'Año', { align: 'left' })}
+    ${renderSortableHeader('yearlyStats', 'annual', annualMeta.shortLabel)}
+    ${renderSortableHeader('yearlyStats', 'mean', 'Promedio mensual')}
+    ${renderSortableHeader('yearlyStats', 'median', 'Mediana')}
+    ${renderSortableHeader('yearlyStats', 'min', 'Mínimo')}
+    ${renderSortableHeader('yearlyStats', 'max', 'Máximo')}
+    ${renderSortableHeader('yearlyStats', 'stdDev', 'Desvío Std')}
+    ${renderSortableHeader('yearlyStats', 'yoy', 'Var. interanual')}
+  </tr>`;
+
+  const rows = (years || []).map((year, index) => ({ year, stats: yearlyStats?.[year] || {}, originalIndex: index }));
+  const sortedRows = sortRowsWithState(rows, individualTableSortState.yearlyStats, getYearStatsSortValue);
+  body.innerHTML = sortedRows.map(row => {
+    const s = row.stats;
     const yoy = s?.yoyAnnual;
     return `<tr>
-      <td><strong>${yr}</strong></td>
+      <td><strong>${row.year}</strong></td>
       <td>${formatNumber(s?.annualValue)}</td>
       <td>${formatNumber(s?.mean)}</td>
       <td>${formatNumber(s?.median)}</td>
@@ -874,18 +983,34 @@ function renderDashboard() {
       <td class="${yoy !== undefined && yoy !== null ? (yoy >= 0 ? 'positive' : 'negative') : ''}">${yoy !== undefined && yoy !== null ? formatPct(yoy) : '-'}</td>
     </tr>`;
   }).join('');
-
-  const mt = document.getElementById('monthlyTable');
-  const header = `<thead><tr><th>Mes</th>${years.map(yr => `<th>${yr}</th>`).join('')}</tr></thead>`;
-  const rows = MONTHS.map((m, mi) => `
-    <tr>
-      <td>${m}</td>
-      ${years.map(yr => renderMonthlyDataCell(currentDataByYear[yr]?.[mi], currentDataMetaByYear?.[yr]?.[mi])).join('')}
-    </tr>
-  `).join('');
-  mt.innerHTML = header + `<tbody>${rows}</tbody>`;
 }
 
+function getMonthlySortValue(row, key) {
+  if (key === 'month') return row.monthIndex;
+  if (String(key || '').startsWith('year:')) {
+    const year = Number(String(key).split(':')[1]);
+    return currentDataByYear?.[year]?.[row.monthIndex];
+  }
+  return row.monthIndex;
+}
+
+function renderMonthlyDataTable(years) {
+  const mt = document.getElementById('monthlyTable');
+  if (!mt) return;
+  const rows = MONTHS.map((monthName, monthIndex) => ({ monthName, monthIndex, originalIndex: monthIndex }));
+  const sortedRows = sortRowsWithState(rows, individualTableSortState.monthlyData, getMonthlySortValue);
+  const header = `<thead><tr>
+    ${renderSortableHeader('monthlyData', 'month', 'Mes', { align: 'left' })}
+    ${(years || []).map(year => renderSortableHeader('monthlyData', `year:${year}`, String(year))).join('')}
+  </tr></thead>`;
+  const bodyRows = sortedRows.map(row => `
+    <tr>
+      <td>${escapeHtml(row.monthName)}</td>
+      ${(years || []).map(year => renderMonthlyDataCell(currentDataByYear[year]?.[row.monthIndex], currentDataMetaByYear?.[year]?.[row.monthIndex])).join('')}
+    </tr>
+  `).join('');
+  mt.innerHTML = header + `<tbody>${bodyRows}</tbody>`;
+}
 
 function getValuesForYears(dataByYear, years) {
   const selected = new Set((years || []).map(Number));
@@ -1035,12 +1160,18 @@ function renderSelectedYearStatsTable(selectedYears, yearlyStats, annualMeta) {
     `;
   }
 
-  const rows = selectedYears.map(year => {
-    const stats = yearlyStats?.[year] || {};
+  const rows = selectedYears.map((year, index) => ({
+    year,
+    stats: yearlyStats?.[year] || {},
+    originalIndex: index,
+  }));
+  const sortedRows = sortRowsWithState(rows, individualTableSortState.selectedYears, getYearStatsSortValue);
+  const rowHtml = sortedRows.map(row => {
+    const stats = row.stats;
     const yoy = stats?.yoyAnnual;
     return `
       <tr>
-        <td><strong>${year}</strong></td>
+        <td><strong>${row.year}</strong></td>
         <td>${formatNumber(stats?.annualValue)}</td>
         <td>${formatNumber(stats?.mean)}</td>
         <td>${formatNumber(stats?.median)}</td>
@@ -1065,17 +1196,17 @@ function renderSelectedYearStatsTable(selectedYears, yearlyStats, annualMeta) {
         <table class="data-table selected-year-stats-table">
           <thead>
             <tr>
-              <th>Año</th>
-              <th>${escapeHtml(annualMeta.shortLabel)}</th>
-              <th>Promedio mensual</th>
-              <th>Mediana</th>
-              <th>Máximo</th>
-              <th>Mínimo</th>
-              <th>Desvío Std</th>
-              <th>Var. interanual</th>
+              ${renderSortableHeader('selectedYears', 'year', 'Año', { align: 'left' })}
+              ${renderSortableHeader('selectedYears', 'annual', annualMeta.shortLabel)}
+              ${renderSortableHeader('selectedYears', 'mean', 'Promedio mensual')}
+              ${renderSortableHeader('selectedYears', 'median', 'Mediana')}
+              ${renderSortableHeader('selectedYears', 'max', 'Máximo')}
+              ${renderSortableHeader('selectedYears', 'min', 'Mínimo')}
+              ${renderSortableHeader('selectedYears', 'stdDev', 'Desvío Std')}
+              ${renderSortableHeader('selectedYears', 'yoy', 'Var. interanual')}
             </tr>
           </thead>
-          <tbody>${rows}</tbody>
+          <tbody>${rowHtml}</tbody>
         </table>
       </div>
     </div>
@@ -1393,6 +1524,7 @@ function clearComparisonDestinations() {
 function clearComparisonResults() {
   destroyComparisonChart();
   currentComparisonTablePayload = null;
+  comparisonVisibleYears = [];
   const sortControls = document.getElementById('comparisonTableSortControls');
   if (sortControls) sortControls.style.display = 'none';
   document.getElementById('compareEmpty').style.display = 'block';
@@ -1412,6 +1544,11 @@ function getComparisonMeasureOptions(payload = null) {
       value: 'mean',
       label: 'Promedio mensual',
       help: 'Promedio simple de los meses cargados dentro de cada año.',
+    },
+    {
+      value: 'monthly_history',
+      label: 'Evolución mensual histórica',
+      help: 'Muestra todos los meses cargados de la serie histórica, sin resumirlos a valores anuales.',
     },
     {
       value: 'median',
@@ -1441,7 +1578,115 @@ function getComparisonMeasureMeta(measure, payload = null) {
   return options.find(option => option.value === measure) || options[0];
 }
 
+function isMonthlyComparisonMode(measure = comparisonTableSort.measure) {
+  return measure === 'monthly_history';
+}
+
+function getComparisonAllYears(payload = currentComparisonTablePayload) {
+  return (payload?.years || []).map(Number).sort((a, b) => a - b);
+}
+
+function sanitizeComparisonVisibleYears(payload = currentComparisonTablePayload) {
+  const allYears = getComparisonAllYears(payload);
+  const available = new Set(allYears.map(year => String(year)));
+  comparisonVisibleYears = [...new Set((comparisonVisibleYears || []).map(Number))]
+    .filter(year => available.has(String(year)))
+    .sort((a, b) => a - b);
+  return comparisonVisibleYears;
+}
+
+function getComparisonVisibleYears(payload = currentComparisonTablePayload) {
+  const allYears = getComparisonAllYears(payload);
+  if (!allYears.length) return [];
+  const visible = sanitizeComparisonVisibleYears(payload);
+  const visibleSet = new Set(visible.map(year => String(year)));
+  return allYears.filter(year => visibleSet.has(String(year)));
+}
+
+function toggleComparisonVisibleYear(year) {
+  const targetYear = Number(year);
+  const next = new Set((comparisonVisibleYears || []).map(Number));
+  if (next.has(targetYear)) next.delete(targetYear);
+  else next.add(targetYear);
+  comparisonVisibleYears = [...next].sort((a, b) => a - b);
+  renderComparisonTable();
+  renderComparisonChartFromPayload();
+}
+
+function selectAllComparisonYears() {
+  comparisonVisibleYears = getComparisonAllYears(currentComparisonTablePayload);
+  renderComparisonTable();
+  renderComparisonChartFromPayload();
+}
+
+function clearComparisonYears() {
+  comparisonVisibleYears = [];
+  renderComparisonTable();
+  renderComparisonChartFromPayload();
+}
+
+function renderComparisonYearFilter(payload = currentComparisonTablePayload) {
+  const allYears = getComparisonAllYears(payload);
+  if (!allYears.length) return '';
+  const visibleYears = getComparisonVisibleYears(payload);
+  const visibleSet = new Set(visibleYears.map(year => String(year)));
+  return `
+    <div class="comparison-year-filter">
+      <div class="comparison-year-filter-header">
+        <div>
+          <label class="form-label">Años visibles en comparación</label>
+          <div class="comparison-year-filter-help">Seleccioná uno, varios o todos. Afecta el gráfico y la tabla comparativa.</div>
+        </div>
+        <div class="comparison-year-filter-actions">
+          <button class="btn btn-secondary btn-sm" type="button" onclick="selectAllComparisonYears()">Ver todos</button>
+          <button class="btn btn-ghost btn-sm" type="button" onclick="clearComparisonYears()">Ocultar todos</button>
+        </div>
+      </div>
+      <div class="comparison-year-chip-list">
+        ${allYears.map(year => {
+          const active = visibleSet.has(String(year));
+          return `
+            <button type="button" class="chip-toggle ${active ? 'active' : ''}" onclick="toggleComparisonVisibleYear(${year})" aria-pressed="${active ? 'true' : 'false'}">
+              <span class="chip-toggle-marker">${active ? '✓' : '+'}</span>
+              <span>${year}</span>
+            </button>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function getComparisonMonthlyPeriods(payload = currentComparisonTablePayload, yearsFilter = null) {
+  const periodKeys = new Set();
+  const allowedYears = yearsFilter ? new Set((yearsFilter || []).map(year => String(year))) : null;
+  (payload?.series || []).forEach(item => {
+    const byYear = item?.dataByYear || {};
+    Object.keys(byYear).forEach(year => {
+      if (allowedYears && !allowedYears.has(String(year))) return;
+      (byYear[year] || []).forEach((value, monthIndex) => {
+        if (value === null || value === undefined || isNaN(Number(value))) return;
+        periodKeys.add(`${year}-${String(monthIndex + 1).padStart(2, '0')}`);
+      });
+    });
+  });
+  return [...periodKeys].sort((a, b) => a.localeCompare(b));
+}
+
+function formatComparisonPeriodLabel(periodKey) {
+  const [year, month] = String(periodKey || '').split('-');
+  const monthName = MONTHS[Number(month) - 1] || month || '';
+  return `${monthName.slice(0, 3)} ${year}`;
+}
+
+function getComparisonMonthlyValue(item, periodKey) {
+  const [year, month] = String(periodKey || '').split('-');
+  const value = item?.dataByYear?.[Number(year)]?.[Number(month) - 1];
+  return value === null || value === undefined || isNaN(Number(value)) ? null : Number(value);
+}
+
 function getComparisonMeasureValue(item, year, measure = comparisonTableSort.measure) {
+  if (isMonthlyComparisonMode(measure)) return null;
   if (!year) return null;
   const stats = item?.yearlyStats?.[Number(year)];
   if (!stats) return null;
@@ -1451,7 +1696,8 @@ function getComparisonMeasureValue(item, year, measure = comparisonTableSort.mea
 }
 
 function resetComparisonTableSortForYears(years = [], payload = null) {
-  const availableYears = new Set((years || []).map(year => String(year)));
+  const visibleYears = getComparisonVisibleYears(payload);
+  const availableYears = new Set((visibleYears || []).map(year => String(year)));
   if (!availableYears.has(String(comparisonTableSort.year || ''))) {
     comparisonTableSort.year = '';
   }
@@ -1465,12 +1711,20 @@ function resetComparisonTableSortForYears(years = [], payload = null) {
   if (!availableMeasures.has(comparisonTableSort.measure)) {
     comparisonTableSort.measure = 'annualValue';
   }
+  if (isMonthlyComparisonMode(comparisonTableSort.measure)) {
+    comparisonTableSort.year = '';
+    comparisonTableSort.direction = 'original';
+  }
 }
 
 function handleComparisonSortChange() {
   comparisonTableSort.measure = document.getElementById('comparisonMeasure')?.value || 'annualValue';
   comparisonTableSort.year = document.getElementById('comparisonSortYear')?.value || '';
   comparisonTableSort.direction = document.getElementById('comparisonSortDirection')?.value || 'original';
+  if (isMonthlyComparisonMode(comparisonTableSort.measure)) {
+    comparisonTableSort.year = '';
+    comparisonTableSort.direction = 'original';
+  }
   if (!comparisonTableSort.year) comparisonTableSort.direction = 'original';
   renderComparisonTable();
   renderComparisonChartFromPayload();
@@ -1479,9 +1733,10 @@ function handleComparisonSortChange() {
 function renderComparisonTableSortControls(payload) {
   const controls = document.getElementById('comparisonTableSortControls');
   if (!controls) return;
-  const years = payload?.years || [];
+  const allYears = getComparisonAllYears(payload);
+  const years = getComparisonVisibleYears(payload);
   resetComparisonTableSortForYears(years, payload);
-  if (!years.length) {
+  if (!allYears.length) {
     controls.style.display = 'none';
     controls.innerHTML = '';
     return;
@@ -1489,6 +1744,7 @@ function renderComparisonTableSortControls(payload) {
 
   const measures = getComparisonMeasureOptions(payload);
   const activeMeasure = getComparisonMeasureMeta(comparisonTableSort.measure, payload);
+  const monthlyMode = isMonthlyComparisonMode(comparisonTableSort.measure);
 
   controls.style.display = 'flex';
   controls.innerHTML = `
@@ -1498,22 +1754,25 @@ function renderComparisonTableSortControls(payload) {
         ${measures.map(option => `<option value="${option.value}" ${comparisonTableSort.measure === option.value ? 'selected' : ''}>${escapeHtml(option.label)}</option>`).join('')}
       </select>
     </div>
-    <div class="comparison-sort-field">
-      <label class="form-label">Año de referencia</label>
-      <select id="comparisonSortYear" class="form-control comparison-sort-select" onchange="handleComparisonSortChange()">
-        <option value="" ${comparisonTableSort.year ? '' : 'selected'}>Sin año específico</option>
-        ${years.map(year => `<option value="${year}" ${String(comparisonTableSort.year) === String(year) ? 'selected' : ''}>${year}</option>`).join('')}
-      </select>
-    </div>
-    <div class="comparison-sort-field">
-      <label class="form-label">Criterio</label>
-      <select id="comparisonSortDirection" class="form-control comparison-sort-select" onchange="handleComparisonSortChange()" ${comparisonTableSort.year ? '' : 'disabled'}>
-        <option value="original" ${comparisonTableSort.direction === 'original' ? 'selected' : ''}>Orden original</option>
-        <option value="desc" ${comparisonTableSort.direction === 'desc' ? 'selected' : ''}>Mayor a menor</option>
-        <option value="asc" ${comparisonTableSort.direction === 'asc' ? 'selected' : ''}>Menor a mayor</option>
-      </select>
-    </div>
+    ${monthlyMode ? '' : `
+      <div class="comparison-sort-field">
+        <label class="form-label">Año de referencia</label>
+        <select id="comparisonSortYear" class="form-control comparison-sort-select" onchange="handleComparisonSortChange()" ${years.length ? '' : 'disabled'}>
+          <option value="" ${comparisonTableSort.year ? '' : 'selected'}>Sin año específico</option>
+          ${years.map(year => `<option value="${year}" ${String(comparisonTableSort.year) === String(year) ? 'selected' : ''}>${year}</option>`).join('')}
+        </select>
+      </div>
+      <div class="comparison-sort-field">
+        <label class="form-label">Criterio</label>
+        <select id="comparisonSortDirection" class="form-control comparison-sort-select" onchange="handleComparisonSortChange()" ${comparisonTableSort.year ? '' : 'disabled'}>
+          <option value="original" ${comparisonTableSort.direction === 'original' ? 'selected' : ''}>Orden original</option>
+          <option value="desc" ${comparisonTableSort.direction === 'desc' ? 'selected' : ''}>Mayor a menor</option>
+          <option value="asc" ${comparisonTableSort.direction === 'asc' ? 'selected' : ''}>Menor a mayor</option>
+        </select>
+      </div>
+    `}
     <div class="comparison-measure-note">${escapeHtml(activeMeasure.help)}</div>
+    ${renderComparisonYearFilter(payload)}
   `;
 }
 
@@ -1543,29 +1802,67 @@ function getSortedComparisonSeries(payload) {
 }
 
 function buildComparisonChartSeries(payload) {
-  const years = payload?.years || [];
   const sortedSeries = getSortedComparisonSeries(payload);
+  const visibleYears = getComparisonVisibleYears(payload);
+  if (isMonthlyComparisonMode()) {
+    const periods = getComparisonMonthlyPeriods(payload, visibleYears);
+    return sortedSeries.map(item => ({
+      label: item.destinationName,
+      values: periods.map(period => getComparisonMonthlyValue(item, period)),
+    }));
+  }
   return sortedSeries.map(item => ({
     label: item.destinationName,
-    values: years.map(year => getComparisonMeasureValue(item, year, comparisonTableSort.measure)),
+    values: visibleYears.map(year => getComparisonMeasureValue(item, year, comparisonTableSort.measure)),
   }));
 }
 
 function renderComparisonChartFromPayload(payload = currentComparisonTablePayload) {
   if (!payload) return;
-  resetComparisonTableSortForYears(payload.years || [], payload);
+  const visibleYears = getComparisonVisibleYears(payload);
+  resetComparisonTableSortForYears(visibleYears, payload);
   const activeMeasure = getComparisonMeasureMeta(comparisonTableSort.measure, payload);
   const metricName = payload.indicatorName || payload.series?.[0]?.indicator?.name || 'Indicador';
+  const monthlyMode = isMonthlyComparisonMode();
+  const periods = monthlyMode ? getComparisonMonthlyPeriods(payload, visibleYears) : [];
   renderComparisonChart('comparisonChart', {
-    years: payload.years || [],
+    years: monthlyMode ? [] : visibleYears,
+    labels: monthlyMode ? periods.map(formatComparisonPeriodLabel) : null,
     series: buildComparisonChartSeries(payload),
     unit: payload.unit || '',
     measureLabel: activeMeasure.label,
   });
   const titleEl = document.getElementById('compareChartTitle');
   const noteEl = document.getElementById('compareChartNote');
-  if (titleEl) titleEl.textContent = `${metricName} · comparación entre destinos`;
-  if (noteEl) noteEl.textContent = activeMeasure.label;
+  if (titleEl) titleEl.textContent = monthlyMode ? `${metricName} · evolución mensual histórica` : `${metricName} · comparación entre destinos`;
+  if (noteEl) noteEl.textContent = visibleYears.length ? activeMeasure.label : `${activeMeasure.label} · sin años visibles`;
+}
+
+function renderMonthlyComparisonTable(payload, table) {
+  const visibleYears = getComparisonVisibleYears(payload);
+  const periods = getComparisonMonthlyPeriods(payload, visibleYears);
+  const sortedSeries = getSortedComparisonSeries(payload);
+  const activeMeasure = getComparisonMeasureMeta(comparisonTableSort.measure, payload);
+  renderComparisonTableSortControls(payload);
+
+  if (!visibleYears.length) {
+    table.innerHTML = '<tbody><tr><td>Seleccioná al menos un año para visualizar la comparación mensual.</td></tr></tbody>';
+    return;
+  }
+  if (!periods.length) {
+    table.innerHTML = '<tbody><tr><td>No hay datos mensuales cargados para los años seleccionados.</td></tr></tbody>';
+    return;
+  }
+
+  const header = `<thead><tr><th>Destino</th>${periods.map(period => `<th>${escapeHtml(formatComparisonPeriodLabel(period))}</th>`).join('')}</tr></thead>`;
+  const rows = sortedSeries.map(item => `
+    <tr>
+      <td>${escapeHtml(item.destinationName)}</td>
+      ${periods.map(period => `<td title="${escapeHtml(activeMeasure.label)} · ${escapeHtml(formatComparisonPeriodLabel(period))}">${formatNumber(getComparisonMonthlyValue(item, period))}</td>`).join('')}
+    </tr>
+  `).join('');
+
+  table.innerHTML = header + `<tbody>${rows}</tbody>`;
 }
 
 function renderComparisonTable() {
@@ -1573,13 +1870,23 @@ function renderComparisonTable() {
   const table = document.getElementById('comparisonTable');
   if (!payload || !table) return;
 
-  const years = payload.years || [];
+  if (isMonthlyComparisonMode()) {
+    renderMonthlyComparisonTable(payload, table);
+    return;
+  }
+
+  const years = getComparisonVisibleYears(payload);
   const sortedSeries = getSortedComparisonSeries(payload);
   const activeSortYear = String(comparisonTableSort.year || '');
   const activeMeasure = getComparisonMeasureMeta(comparisonTableSort.measure, payload);
   const isSortedByValue = activeSortYear && comparisonTableSort.direction !== 'original';
   const sortArrow = comparisonTableSort.direction === 'asc' ? '↑' : comparisonTableSort.direction === 'desc' ? '↓' : '';
   renderComparisonTableSortControls(payload);
+
+  if (!years.length) {
+    table.innerHTML = '<tbody><tr><td>Seleccioná al menos un año para visualizar la comparación.</td></tr></tbody>';
+    return;
+  }
 
   const header = `<thead><tr><th>Destino</th>${years.map(year => {
     const isActive = String(year) === activeSortYear;
@@ -1637,6 +1944,7 @@ async function runComparison() {
       series.push({
         indicator,
         destinationName: indicator.destination?.name || 'Sin destino',
+        dataByYear,
         yearlyStats,
         annualSeries,
       });
@@ -1653,6 +1961,7 @@ async function runComparison() {
       indicatorName: selectedIndicators[0]?.name || 'Indicador',
     };
     comparisonTableSort = { year: '', direction: 'original', measure: 'annualValue' };
+    comparisonVisibleYears = [...years];
     renderComparisonChartFromPayload();
     document.getElementById('compareSummaryBadge').textContent = `${selectedIndicators.length} destinos`;
     renderComparisonTable();
