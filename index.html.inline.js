@@ -13,7 +13,8 @@ let comparisonSelection = { metricKey: '', destinationIds: [] };
 let currentComparisonTablePayload = null;
 let comparisonTableSort = { year: '', direction: 'original', measure: 'annualValue' };
 let comparisonVisibleYears = [];
-let comparisonRankingYear = 'global';
+let rankingState = { metricKey: '', year: '', direction: 'desc', excludeAggregates: true };
+let currentRankingPayload = null;
 const groupCollapseState = { sidebar: {}, center: {} };
 const overviewScrollState = {};
 const individualTableSortState = {
@@ -39,6 +40,7 @@ async function initApp() {
   try {
     await Promise.all([loadDestinations(), loadIndicators()]);
     renderComparisonControls();
+    renderTerritorialRankingControls();
     showEmptyState();
   } catch (e) {
     document.getElementById('destinationList').innerHTML = '<p style="padding:16px;font-size:12px;color:var(--danger)">Error cargando destinos e indicadores</p>';
@@ -1132,6 +1134,376 @@ function getFilteredComparableMetricOptions() {
   });
 }
 
+
+function buildRankingMetricOptions() {
+  return buildComparableMetricOptions();
+}
+
+function isAggregateDestinationName(name) {
+  const normalized = normalizeComparisonText(name || '');
+  return normalized === 'total pais' || normalized.startsWith('region ');
+}
+
+function getRankingDestinationById(destinationId) {
+  return destinations.find(dest => dest.id === destinationId) || null;
+}
+
+function getRankingCandidateIndicators(metricKey = rankingState.metricKey, { excludeAggregates = rankingState.excludeAggregates } = {}) {
+  const byDestination = new Map();
+  indicators
+    .filter(ind => getMetricKey(ind) === metricKey && ind.destination_id)
+    .sort(compareIndicatorsForOrdering)
+    .forEach(indicator => {
+      const destination = getRankingDestinationById(indicator.destination_id) || indicator.destination || null;
+      if (!destination) return;
+      if (excludeAggregates && isAggregateDestinationName(destination.name)) return;
+      if (!byDestination.has(destination.id)) {
+        byDestination.set(destination.id, { ...indicator, destination });
+      }
+    });
+  return [...byDestination.values()];
+}
+
+function getFilteredRankingMetricOptions() {
+  const options = buildRankingMetricOptions();
+  const query = normalizeComparisonText(document.getElementById('rankingMetricSearch')?.value || '');
+  if (!query) return options;
+  return options.filter(opt => normalizeComparisonText(`${opt.label} ${opt.groupTitle} ${opt.unit}`).includes(query));
+}
+
+function renderRankingMetricOptions(options, selectedMetric) {
+  const select = document.getElementById('rankingMetricKey');
+  if (!select) return;
+  if (!options.length) {
+    select.innerHTML = '<option value="">Sin indicadores para ranking</option>';
+    return;
+  }
+
+  const groups = new Map();
+  options.forEach(opt => {
+    const groupTitle = opt.groupTitle || 'Sin agrupar';
+    if (!groups.has(groupTitle)) groups.set(groupTitle, []);
+    groups.get(groupTitle).push(opt);
+  });
+
+  select.innerHTML = [...groups.entries()].map(([groupTitle, items]) => `
+    <optgroup label="${escapeHtml(groupTitle)}">
+      ${items.map(opt => {
+        const unit = opt.unit ? ` · ${escapeHtml(opt.unit)}` : '';
+        const countLabel = `${opt.count} destino${opt.count !== 1 ? 's' : ''}`;
+        return `<option value="${escapeHtml(opt.key)}" ${selectedMetric === opt.key ? 'selected' : ''}>${escapeHtml(opt.label)}${unit} · ${countLabel}</option>`;
+      }).join('')}
+    </optgroup>
+  `).join('');
+}
+
+function renderTerritorialRankingControls() {
+  const options = getFilteredRankingMetricOptions();
+  const select = document.getElementById('rankingMetricKey');
+  const results = document.getElementById('rankingResults');
+  const empty = document.getElementById('rankingEmpty');
+  const badge = document.getElementById('rankingSummaryBadge');
+  if (!select) return;
+
+  if (!options.length) {
+    rankingState.metricKey = '';
+    renderRankingMetricOptions([], '');
+    if (results) results.style.display = 'none';
+    if (empty) {
+      empty.style.display = 'block';
+      empty.textContent = 'No hay indicadores repetidos en dos o más destinos para armar rankings.';
+    }
+    if (badge) badge.textContent = 'Sin ranking';
+    populateRankingYearOptions([]);
+    return;
+  }
+
+  const currentStillVisible = options.some(opt => opt.key === rankingState.metricKey);
+  rankingState.metricKey = currentStillVisible ? rankingState.metricKey : options[0].key;
+  renderRankingMetricOptions(options, rankingState.metricKey);
+  updateRankingYearOptions();
+}
+
+function handleRankingMetricSearch() {
+  currentRankingPayload = null;
+  renderTerritorialRankingControls();
+  clearTerritorialRankingResults('Elegí un indicador y generá el ranking territorial.');
+}
+
+function handleRankingMetricChange() {
+  rankingState.metricKey = document.getElementById('rankingMetricKey')?.value || '';
+  currentRankingPayload = null;
+  clearTerritorialRankingResults('Elegí un período y generá el ranking territorial.');
+  updateRankingYearOptions();
+}
+
+function handleRankingControlChange() {
+  rankingState.year = document.getElementById('rankingYear')?.value || '';
+  rankingState.direction = document.getElementById('rankingDirection')?.value || 'desc';
+  rankingState.excludeAggregates = document.getElementById('rankingExcludeAggregates')?.checked !== false;
+  if (currentRankingPayload) runTerritorialRanking();
+  else updateRankingYearOptions();
+}
+
+function clearTerritorialRankingResults(message = 'Elegí un indicador y generá el ranking territorial.') {
+  const results = document.getElementById('rankingResults');
+  const empty = document.getElementById('rankingEmpty');
+  const badge = document.getElementById('rankingSummaryBadge');
+  if (results) {
+    results.innerHTML = '';
+    results.style.display = 'none';
+  }
+  if (empty) {
+    empty.style.display = 'block';
+    empty.textContent = message;
+  }
+  if (badge) badge.textContent = 'Sin ranking';
+}
+
+function collectRankingFetchIndicatorIds(candidates) {
+  const ids = new Set(candidates.map(ind => ind.id));
+  candidates.forEach(indicator => {
+    if (getIndicatorCalcMode(indicator) !== 'ratio_of_sums') return;
+    const numeratorKey = String(indicator.formula_numerator_key || '').trim();
+    const denominatorKey = String(indicator.formula_denominator_key || '').trim();
+    if (!numeratorKey || !denominatorKey) return;
+    indicators
+      .filter(ind => ind.destination_id === indicator.destination_id)
+      .filter(ind => [numeratorKey, denominatorKey].includes(getMetricKey(ind)))
+      .forEach(ind => ids.add(ind.id));
+  });
+  return [...ids];
+}
+
+function populateRankingYearOptions(years) {
+  const select = document.getElementById('rankingYear');
+  if (!select) return;
+  const cleanYears = [...new Set((years || []).map(Number).filter(Number.isFinite))].sort((a, b) => b - a);
+  const previous = rankingState.year;
+  const defaultYear = cleanYears[0] ? String(cleanYears[0]) : '';
+  const nextValue = previous === '__all__' || cleanYears.map(String).includes(String(previous))
+    ? previous
+    : defaultYear;
+  rankingState.year = nextValue;
+
+  select.innerHTML = [
+    '<option value="__all__" ' + (nextValue === '__all__' ? 'selected' : '') + '>Serie completa</option>',
+    ...cleanYears.map(year => `<option value="${year}" ${String(nextValue) === String(year) ? 'selected' : ''}>${year}</option>`),
+  ].join('');
+  select.disabled = cleanYears.length === 0;
+}
+
+async function updateRankingYearOptions() {
+  const candidates = getRankingCandidateIndicators();
+  const ids = collectRankingFetchIndicatorIds(candidates);
+  if (!ids.length) {
+    populateRankingYearOptions([]);
+    return;
+  }
+  try {
+    const points = await fetchDataPointsForIndicators(ids);
+    const years = [...new Set((points || [])
+      .map(point => Number(point.year))
+      .filter(Number.isFinite))]
+      .sort((a, b) => b - a);
+    populateRankingYearOptions(years);
+  } catch (error) {
+    populateRankingYearOptions([]);
+  }
+}
+
+function getOrderedValuesFromDataByYear(dataByYear, years) {
+  const selectedYears = [...years].map(Number).filter(Number.isFinite).sort((a, b) => a - b);
+  return selectedYears.flatMap(year => (dataByYear?.[year] || []).filter(value => value !== null && value !== undefined && !isNaN(value)).map(Number));
+}
+
+function getUnionYearsForRanking(dataByYear, relatedSeriesMap = {}) {
+  const yearSet = new Set(Object.keys(dataByYear || {}).map(Number).filter(Number.isFinite));
+  Object.values(relatedSeriesMap || {}).forEach(series => {
+    Object.keys(series || {}).forEach(year => {
+      const numeric = Number(year);
+      if (Number.isFinite(numeric)) yearSet.add(numeric);
+    });
+  });
+  return [...yearSet].sort((a, b) => a - b);
+}
+
+function sumRelatedValuesForYears(relatedSeriesMap, metricKey, years) {
+  return sumClean(getOrderedValuesFromDataByYear(relatedSeriesMap?.[metricKey] || {}, years));
+}
+
+function calculateRankingSeriesValue(indicator, dataByYear, relatedSeriesMap, selectedYear) {
+  const mode = getIndicatorCalcMode(indicator);
+  if (selectedYear && selectedYear !== '__all__') {
+    const year = Number(selectedYear);
+    const vals = dataByYear?.[year] || [];
+    const stats = calcStats(vals);
+    return calculateAnnualValue({ ...indicator, dataByYear }, stats, year, relatedSeriesMap);
+  }
+
+  const years = getUnionYearsForRanking(dataByYear, relatedSeriesMap);
+  if (!years.length) return null;
+
+  if (mode === 'none') return null;
+  if (mode === 'ratio_of_sums') {
+    const numeratorKey = String(indicator?.formula_numerator_key || '').trim();
+    const denominatorKey = String(indicator?.formula_denominator_key || '').trim();
+    const multiplier = indicator?.formula_multiplier === null || indicator?.formula_multiplier === undefined || indicator?.formula_multiplier === ''
+      ? 1
+      : Number(indicator.formula_multiplier);
+    if (!numeratorKey || !denominatorKey) return null;
+    const numerator = sumRelatedValuesForYears(relatedSeriesMap, numeratorKey, years);
+    const denominator = sumRelatedValuesForYears(relatedSeriesMap, denominatorKey, years);
+    if (!denominator) return null;
+    return (numerator / denominator) * multiplier;
+  }
+
+  const values = getOrderedValuesFromDataByYear(dataByYear, years);
+  if (!values.length) return null;
+  const stats = calcStats(values);
+
+  switch (mode) {
+    case 'sum': return stats?.sum ?? null;
+    case 'average': return stats?.mean ?? null;
+    case 'last_value': return getLastNonNull(values);
+    case 'max': return stats?.max ?? null;
+    case 'min': return stats?.min ?? null;
+    default: return stats?.sum ?? null;
+  }
+}
+
+function getRankingPeriodLabel(selectedYear) {
+  return selectedYear === '__all__' ? 'serie completa' : String(selectedYear || '—');
+}
+
+function shouldShowRankingShare(indicator, rows) {
+  if (getIndicatorCalcMode(indicator) !== 'sum') return false;
+  return rows.every(row => row.value === null || row.value >= 0);
+}
+
+function renderRankingRows(rows, { showShare = false, unit = '' } = {}) {
+  const numericRows = rows.filter(row => row.value !== null && row.value !== undefined && !isNaN(row.value));
+  const maxAbs = Math.max(...numericRows.map(row => Math.abs(Number(row.value))), 0);
+  const total = numericRows.reduce((acc, row) => acc + Math.max(0, Number(row.value)), 0);
+
+  return rows.map((row, index) => {
+    const value = row.value;
+    const hasValue = value !== null && value !== undefined && !isNaN(value);
+    const width = hasValue && maxAbs ? Math.max(3, Math.abs(Number(value)) / maxAbs * 100) : 0;
+    const share = showShare && hasValue && total ? (Number(value) / total) * 100 : null;
+    return `
+      <div class="ranking-row ${!hasValue ? 'ranking-row-empty' : ''}">
+        <div class="ranking-position">${index + 1}</div>
+        <div class="ranking-destination">
+          <strong>${escapeHtml(row.destinationName)}</strong>
+          <span>${escapeHtml(row.indicatorName || '')}</span>
+        </div>
+        <div class="ranking-bar-cell">
+          <div class="ranking-bar-track">
+            <div class="ranking-bar-fill" style="width:${width}%"></div>
+          </div>
+          ${share !== null ? `<span class="ranking-share">${share.toFixed(1)}%</span>` : ''}
+        </div>
+        <div class="ranking-value">${hasValue ? `${formatNumber(value)}${unit ? ` ${escapeHtml(unit)}` : ''}` : '-'}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function runTerritorialRanking() {
+  rankingState.metricKey = document.getElementById('rankingMetricKey')?.value || rankingState.metricKey;
+  rankingState.year = document.getElementById('rankingYear')?.value || rankingState.year;
+  rankingState.direction = document.getElementById('rankingDirection')?.value || rankingState.direction || 'desc';
+  rankingState.excludeAggregates = document.getElementById('rankingExcludeAggregates')?.checked !== false;
+
+  const results = document.getElementById('rankingResults');
+  const empty = document.getElementById('rankingEmpty');
+  const badge = document.getElementById('rankingSummaryBadge');
+  if (!rankingState.metricKey) {
+    clearTerritorialRankingResults('Seleccioná un indicador para generar el ranking.');
+    return;
+  }
+
+  const metricOption = buildRankingMetricOptions().find(opt => opt.key === rankingState.metricKey);
+  const candidates = getRankingCandidateIndicators();
+  if (candidates.length < 2) {
+    clearTerritorialRankingResults('Ese indicador no tiene suficientes destinos para armar un ranking territorial.');
+    return;
+  }
+
+  if (results) {
+    results.style.display = 'block';
+    results.innerHTML = '<div class="ranking-loading"><div class="spinner"></div><span>Calculando ranking territorial...</span></div>';
+  }
+  if (empty) empty.style.display = 'none';
+
+  try {
+    const fetchIds = collectRankingFetchIndicatorIds(candidates);
+    const points = await fetchDataPointsForIndicators(fetchIds);
+    const dataByIndicator = buildDataByIndicator(points);
+
+    const rows = candidates.map(indicator => {
+      const destinationIndicators = indicators.filter(ind => ind.destination_id === indicator.destination_id);
+      const dataByYear = buildDataByYear(dataByIndicator[indicator.id] || []);
+      const relatedSeriesMap = buildRelatedSeriesMapForDestination(indicator, destinationIndicators, dataByIndicator);
+      const value = calculateRankingSeriesValue(indicator, dataByYear, relatedSeriesMap, rankingState.year);
+      return {
+        destinationId: indicator.destination_id,
+        destinationName: indicator.destination?.name || getRankingDestinationById(indicator.destination_id)?.name || 'Destino sin nombre',
+        indicatorName: indicator.name,
+        indicator,
+        value: value === null || value === undefined || isNaN(value) ? null : Number(value),
+      };
+    });
+
+    const directionFactor = rankingState.direction === 'asc' ? 1 : -1;
+    const sortedRows = rows
+      .map((row, index) => ({ ...row, __originalIndex: index }))
+      .sort((a, b) => {
+        const aMissing = a.value === null;
+        const bMissing = b.value === null;
+        if (aMissing && bMissing) return a.__originalIndex - b.__originalIndex;
+        if (aMissing) return 1;
+        if (bMissing) return -1;
+        if (a.value === b.value) return a.__originalIndex - b.__originalIndex;
+        return (a.value - b.value) * directionFactor;
+      });
+
+    const rowsWithValue = sortedRows.filter(row => row.value !== null);
+    const periodLabel = getRankingPeriodLabel(rankingState.year);
+    const annualMeta = getAnnualCalcMeta(getIndicatorCalcMode(candidates[0]));
+    const showShare = shouldShowRankingShare(candidates[0], rowsWithValue);
+    const unit = metricOption?.unit || candidates[0]?.unit || '';
+    const aggregateLabel = rankingState.excludeAggregates ? 'Agregados excluidos' : 'Agregados incluidos';
+    currentRankingPayload = { rows: sortedRows, metricKey: rankingState.metricKey, year: rankingState.year };
+
+    if (badge) badge.textContent = `${rowsWithValue.length} destino${rowsWithValue.length !== 1 ? 's' : ''}`;
+    if (results) {
+      results.style.display = 'block';
+      results.innerHTML = `
+        <div class="ranking-result-header">
+          <div>
+            <h4>${escapeHtml(metricOption?.label || candidates[0]?.name || 'Indicador')} · ${escapeHtml(periodLabel)}</h4>
+            <p>${escapeHtml(annualMeta.label)} · ${escapeHtml(aggregateLabel)} · ${rowsWithValue.length} con dato de ${sortedRows.length} destino${sortedRows.length !== 1 ? 's' : ''}</p>
+          </div>
+          ${showShare ? '<span class="badge badge-green">Incluye participación sobre total visible</span>' : '<span class="badge badge-blue">Ranking por valor</span>'}
+        </div>
+        <div class="ranking-list">
+          ${renderRankingRows(sortedRows, { showShare, unit })}
+        </div>
+      `;
+    }
+  } catch (error) {
+    currentRankingPayload = null;
+    if (results) results.style.display = 'none';
+    if (empty) {
+      empty.style.display = 'block';
+      empty.textContent = 'No pude calcular el ranking: ' + error.message;
+    }
+    if (badge) badge.textContent = 'Error';
+  }
+}
+
 function renderComparisonMetricOptions(options, selectedMetric) {
   const metricSelect = document.getElementById('compareMetricKey');
   if (!options.length) {
@@ -1291,7 +1663,6 @@ function clearComparisonResults() {
   destroyComparisonChart();
   currentComparisonTablePayload = null;
   comparisonVisibleYears = [];
-  comparisonRankingYear = 'global';
   const sortControls = document.getElementById('comparisonTableSortControls');
   if (sortControls) sortControls.style.display = 'none';
   document.getElementById('compareEmpty').style.display = 'block';
@@ -1543,191 +1914,6 @@ function renderComparisonTableSortControls(payload) {
   `;
 }
 
-
-function getComparisonRankingMeasureKey() {
-  return isMonthlyComparisonMode(comparisonTableSort.measure) ? 'annualValue' : (comparisonTableSort.measure || 'annualValue');
-}
-
-function getComparisonRankingMeasureMeta(payload = currentComparisonTablePayload) {
-  const measureKey = getComparisonRankingMeasureKey();
-  const meta = getComparisonMeasureMeta(measureKey, payload);
-  if (isMonthlyComparisonMode(comparisonTableSort.measure)) {
-    return {
-      ...meta,
-      help: 'La vista mensual histórica sigue activa; el ranking usa la medida anual aplicada para ordenar destinos.',
-    };
-  }
-  return meta;
-}
-
-function getComparisonRankingYears(payload = currentComparisonTablePayload) {
-  const visibleYears = getComparisonVisibleYears(payload);
-  return visibleYears.length ? visibleYears : getComparisonAllYears(payload);
-}
-
-function sanitizeComparisonRankingYear(payload = currentComparisonTablePayload) {
-  const years = getComparisonRankingYears(payload);
-  const validValues = new Set(['global', ...years.map(year => String(year))]);
-  if (!validValues.has(String(comparisonRankingYear || 'global'))) {
-    comparisonRankingYear = 'global';
-  }
-  return comparisonRankingYear;
-}
-
-function handleComparisonRankingYearChange() {
-  comparisonRankingYear = document.getElementById('comparisonRankingYear')?.value || 'global';
-  renderComparisonRanking();
-}
-
-function getComparisonValuesForYears(item, years) {
-  const selected = new Set((years || []).map(Number));
-  return Object.entries(item?.dataByYear || {})
-    .filter(([year]) => selected.has(Number(year)))
-    .flatMap(([, values]) => values || [])
-    .filter(value => value !== null && value !== undefined && !isNaN(Number(value)))
-    .map(Number);
-}
-
-function calculateComparisonAppliedMetricForYears(item, years) {
-  const cleanYears = [...new Set((years || []).map(Number).filter(Number.isFinite))].sort((a, b) => a - b);
-  const indicator = item?.indicator || null;
-  const mode = getIndicatorCalcMode(indicator);
-  const values = getComparisonValuesForYears(item, cleanYears);
-  const stats = calcStats(values);
-
-  if (!cleanYears.length) return null;
-  if (cleanYears.length === 1) return item?.yearlyStats?.[cleanYears[0]]?.annualValue ?? null;
-
-  switch (mode) {
-    case 'sum':
-      return stats?.sum ?? null;
-    case 'average':
-      return stats?.mean ?? null;
-    case 'last_value':
-      return getLastNonNull(values);
-    case 'max':
-      return stats?.max ?? null;
-    case 'min':
-      return stats?.min ?? null;
-    case 'ratio_of_sums': {
-      const numeratorKey = String(indicator?.formula_numerator_key || '').trim();
-      const denominatorKey = String(indicator?.formula_denominator_key || '').trim();
-      const multiplier = indicator?.formula_multiplier === null || indicator?.formula_multiplier === undefined || indicator?.formula_multiplier === ''
-        ? 1
-        : Number(indicator.formula_multiplier);
-      if (!numeratorKey || !denominatorKey) return null;
-      const numerator = sumClean(cleanYears.flatMap(year => item?.relatedSeriesMap?.[numeratorKey]?.[year] || []));
-      const denominator = sumClean(cleanYears.flatMap(year => item?.relatedSeriesMap?.[denominatorKey]?.[year] || []));
-      return denominator ? (numerator / denominator) * multiplier : null;
-    }
-    case 'none':
-      return null;
-    default:
-      return stats?.sum ?? null;
-  }
-}
-
-function getComparisonRankingValue(item, payload = currentComparisonTablePayload) {
-  const measureKey = getComparisonRankingMeasureKey();
-  if (String(comparisonRankingYear) !== 'global') {
-    return getComparisonMeasureValue(item, Number(comparisonRankingYear), measureKey);
-  }
-
-  const years = getComparisonRankingYears(payload);
-  if (measureKey === 'annualValue') {
-    return calculateComparisonAppliedMetricForYears(item, years);
-  }
-
-  const values = getComparisonValuesForYears(item, years);
-  const stats = calcStats(values);
-  const value = stats?.[measureKey];
-  return value === null || value === undefined || isNaN(Number(value)) ? null : Number(value);
-}
-
-function buildComparisonRankingRows(payload = currentComparisonTablePayload) {
-  const measureMeta = getComparisonRankingMeasureMeta(payload);
-  const rows = (payload?.series || []).map((item, index) => ({
-    item,
-    destinationName: item.destinationName || 'Sin destino',
-    value: getComparisonRankingValue(item, payload),
-    originalIndex: index,
-  }));
-
-  rows.sort((a, b) => {
-    const aMissing = a.value === null || a.value === undefined || isNaN(Number(a.value));
-    const bMissing = b.value === null || b.value === undefined || isNaN(Number(b.value));
-    if (aMissing && bMissing) return a.originalIndex - b.originalIndex;
-    if (aMissing) return 1;
-    if (bMissing) return -1;
-    if (Number(a.value) === Number(b.value)) return a.originalIndex - b.originalIndex;
-    return Number(b.value) - Number(a.value);
-  });
-
-  const validValues = rows
-    .map(row => row.value)
-    .filter(value => value !== null && value !== undefined && !isNaN(Number(value)))
-    .map(Number);
-  const total = validValues.reduce((acc, value) => acc + Math.max(0, value), 0);
-  const max = validValues.length ? Math.max(...validValues.map(value => Math.abs(value))) : 0;
-
-  return { rows, total, max, measureMeta };
-}
-
-function renderComparisonRanking(payload = currentComparisonTablePayload) {
-  const body = document.getElementById('comparisonRankingBody');
-  const yearSelectWrap = document.getElementById('comparisonRankingYearWrap');
-  const title = document.getElementById('comparisonRankingTitle');
-  const note = document.getElementById('comparisonRankingNote');
-  if (!body || !payload) return;
-
-  const years = getComparisonRankingYears(payload);
-  sanitizeComparisonRankingYear(payload);
-  if (yearSelectWrap) {
-    yearSelectWrap.innerHTML = `
-      <label class="form-label">Ranking</label>
-      <select id="comparisonRankingYear" class="form-control comparison-sort-select" onchange="handleComparisonRankingYearChange()">
-        <option value="global" ${comparisonRankingYear === 'global' ? 'selected' : ''}>Global serie visible</option>
-        ${years.map(year => `<option value="${year}" ${String(comparisonRankingYear) === String(year) ? 'selected' : ''}>Año ${year}</option>`).join('')}
-      </select>
-    `;
-  }
-
-  const { rows, total, max, measureMeta } = buildComparisonRankingRows(payload);
-  const metricName = payload.indicatorName || payload.series?.[0]?.indicator?.name || 'Indicador';
-  const periodLabel = comparisonRankingYear === 'global' ? 'serie visible' : `año ${comparisonRankingYear}`;
-  if (title) title.textContent = `Ranking territorial · ${metricName}`;
-  if (note) note.textContent = `${measureMeta.label} · ${periodLabel}`;
-
-  if (!rows.length) {
-    body.innerHTML = '<div class="empty-compare">No hay destinos para rankear.</div>';
-    return;
-  }
-
-  const rankedRows = rows.map((row, index) => {
-    const numericValue = row.value === null || row.value === undefined || isNaN(Number(row.value)) ? null : Number(row.value);
-    const width = numericValue !== null && max > 0 ? Math.max(4, Math.min(100, Math.abs(numericValue) / max * 100)) : 0;
-    const share = numericValue !== null && total > 0 ? (Math.max(0, numericValue) / total) * 100 : null;
-    return `
-      <div class="ranking-row ${index === 0 && numericValue !== null ? 'ranking-row-leader' : ''}">
-        <div class="ranking-position">${numericValue === null ? '—' : index + 1}</div>
-        <div class="ranking-main">
-          <div class="ranking-row-header">
-            <span class="ranking-name">${escapeHtml(row.destinationName)}</span>
-            <span class="ranking-value">${formatNumber(numericValue)} ${escapeHtml(payload.unit || '')}</span>
-          </div>
-          <div class="ranking-bar-track"><div class="ranking-bar-fill" style="width:${width}%"></div></div>
-          <div class="ranking-row-meta">${numericValue === null ? 'Sin dato para este período' : `${share !== null ? `${share.toFixed(1).replace('.', ',')}% del total visible` : measureMeta.label}`}</div>
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  body.innerHTML = `
-    <div class="ranking-list">${rankedRows}</div>
-    <div class="ranking-footnote">Ranking calculado solo con los destinos seleccionados y los años visibles en la comparación.</div>
-  `;
-}
-
 function getComparisonValueForSort(item, year) {
   return getComparisonMeasureValue(item, year, comparisonTableSort.measure);
 }
@@ -1788,7 +1974,6 @@ function renderComparisonChartFromPayload(payload = currentComparisonTablePayloa
   const noteEl = document.getElementById('compareChartNote');
   if (titleEl) titleEl.textContent = monthlyMode ? `${metricName} · evolución mensual histórica` : `${metricName} · comparación entre destinos`;
   if (noteEl) noteEl.textContent = visibleYears.length ? activeMeasure.label : `${activeMeasure.label} · sin años visibles`;
-  renderComparisonRanking(payload);
 }
 
 function renderMonthlyComparisonTable(payload, table) {
@@ -1900,7 +2085,6 @@ async function runComparison() {
         dataByYear,
         yearlyStats,
         annualSeries,
-        relatedSeriesMap,
       });
     });
 

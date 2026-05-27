@@ -236,11 +236,14 @@ En la vista pública, al seleccionar un destino, la barra lateral se desplaza au
 - Al abrir un indicador, la pantalla se desplaza directamente al dashboard del indicador, tanto en escritorio como en celular.
 
 
-## Ranking territorial comparativo
+## Ranking territorial por indicador
 
-En la sección de comparación se agrega un ranking territorial del indicador seleccionado.
+La vista pública incluye una sección independiente para generar rankings territoriales por indicador.
 
-- Ordena destinos de mayor a menor.
-- Permite ver ranking global de la serie visible o ranking por año.
-- Respeta los años visibles seleccionados en la comparación.
-- No modifica datos cargados ni estructura de base.
+Permite elegir:
+- indicador comparable
+- año específico o serie completa
+- orden mayor a menor / menor a mayor
+- exclusión de agregados territoriales como Total País y Regiones
+
+El ranking respeta la regla anual configurada en cada indicador: suma, promedio, último valor, máximos/mínimos o ratio recalculado por numerador y denominador.
