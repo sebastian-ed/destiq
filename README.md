@@ -235,3 +235,12 @@ En la vista pública, al seleccionar un destino, la barra lateral se desplaza au
 - Al seleccionar un destino, la barra lateral baja al árbol de indicadores del destino.
 - Al abrir un indicador, la pantalla se desplaza directamente al dashboard del indicador, tanto en escritorio como en celular.
 
+
+## Ranking territorial comparativo
+
+En la sección de comparación se agrega un ranking territorial del indicador seleccionado.
+
+- Ordena destinos de mayor a menor.
+- Permite ver ranking global de la serie visible o ranking por año.
+- Respeta los años visibles seleccionados en la comparación.
+- No modifica datos cargados ni estructura de base.
