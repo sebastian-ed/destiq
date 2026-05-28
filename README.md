@@ -247,3 +247,19 @@ Permite elegir:
 - exclusión de agregados territoriales como Total País y Regiones
 
 El ranking respeta la regla anual configurada en cada indicador: suma, promedio, último valor, máximos/mínimos o ratio recalculado por numerador y denominador.
+
+
+## Zoom en comparación mensual histórica
+
+La vista de comparación mensual histórica incluye controles de zoom manual para analizar series largas sin perder el gráfico completo. Permite acercar, alejar, desplazarse por la serie y volver a ver todo.
+
+## Hallazgos automáticos por destino
+
+La vista pública incluye un módulo independiente de informe técnico automático por destino.
+
+Permite seleccionar:
+- destino
+- todos los indicadores con datos o un indicador individual
+- serie completa, último año, últimos 2 años, últimos 5 años o rango personalizado
+
+El informe respeta la regla anual configurada en cada indicador y genera lectura técnica de variaciones, niveles, máximos, mínimos, picos mensuales y señales relevantes.

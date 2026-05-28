@@ -1845,3 +1845,286 @@ input, select, textarea { font-family: inherit; }
     padding: 16px;
   }
 }
+
+
+/* Zoom manual para comparación mensual histórica */
+.comparison-zoom-controls {
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 20px 14px;
+  flex-wrap: wrap;
+}
+.comparison-zoom-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.comparison-zoom-label {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  margin-right: 4px;
+}
+.comparison-zoom-range-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: min(420px, 100%);
+  flex: 1;
+  justify-content: flex-end;
+}
+.comparison-zoom-range {
+  width: min(280px, 100%);
+  accent-color: var(--accent);
+}
+.comparison-zoom-info {
+  color: var(--text-subtle);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.comparison-zoom-controls .btn[disabled],
+.comparison-zoom-range[disabled] {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .comparison-zoom-controls {
+    align-items: stretch;
+    padding: 0 16px 14px;
+  }
+  .comparison-zoom-main,
+  .comparison-zoom-range-wrap {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .comparison-zoom-range {
+    width: 100%;
+  }
+  .comparison-zoom-info {
+    white-space: normal;
+  }
+}
+
+/* Hallazgos automáticos */
+.insights-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+.insights-card-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.insights-card-header h3 {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 3px;
+}
+.insights-card-header p {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.insights-card-body {
+  padding: 20px;
+}
+.insights-controls {
+  display: grid;
+  grid-template-columns: minmax(160px, .9fr) minmax(170px, .9fr) minmax(220px, 1.3fr) minmax(150px, .75fr) minmax(100px, .55fr) minmax(100px, .55fr) auto;
+  gap: 14px;
+  align-items: end;
+}
+.insights-note {
+  margin-top: 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.insights-results {
+  margin-top: 18px;
+  display: grid;
+  gap: 18px;
+}
+.insights-result-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 4px;
+}
+.insights-result-header h4 {
+  font-size: 18px;
+  font-weight: 800;
+  margin-bottom: 3px;
+}
+.insights-result-header p {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.insights-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.insights-kpi {
+  background: rgba(15,23,42,.5);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: 14px;
+  display: grid;
+  gap: 4px;
+}
+.insights-kpi span {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.insights-kpi strong {
+  color: var(--text-primary);
+  font-size: 20px;
+  font-family: var(--font-mono);
+}
+.insights-kpi small {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.insights-report-section {
+  background: rgba(15,23,42,.38);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+}
+.insights-report-section h4,
+.insights-group-title h4 {
+  font-size: 15px;
+  font-weight: 800;
+}
+.insights-report-section p {
+  color: var(--text-subtle);
+  font-size: 13px;
+  margin-top: 8px;
+}
+.insights-bullet-list {
+  margin-top: 12px;
+  padding-left: 18px;
+  color: var(--text-subtle);
+  font-size: 13px;
+  display: grid;
+  gap: 8px;
+}
+.insights-group-section {
+  display: grid;
+  gap: 12px;
+}
+.insights-group-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: rgba(15,23,42,.36);
+  border: 1px solid var(--border-light);
+}
+.insights-indicator-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px;
+}
+.insights-indicator-card {
+  background: rgba(15,23,42,.5);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: grid;
+  gap: 13px;
+}
+.insights-indicator-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.insights-indicator-head h5 {
+  font-size: 15px;
+  line-height: 1.25;
+  margin-bottom: 3px;
+}
+.insights-indicator-head span {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.insights-indicator-head strong {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.insights-indicator-head strong.positive { color: var(--success); }
+.insights-indicator-head strong.negative { color: var(--danger); }
+.insights-metric-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.insights-metric-row.compact {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.insights-metric-row div {
+  border: 1px solid rgba(51,65,85,.55);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(30,41,59,.34);
+}
+.insights-metric-row span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  margin-bottom: 4px;
+}
+.insights-metric-row strong {
+  font-size: 12px;
+  color: var(--text-subtle);
+  font-family: var(--font-mono);
+}
+.insights-card-narrative {
+  color: var(--text-subtle);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+@media (max-width: 1180px) {
+  .insights-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 760px) {
+  .insights-card-header,
+  .insights-result-header,
+  .insights-group-title {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .insights-controls {
+    grid-template-columns: 1fr;
+  }
+  .insights-indicator-grid {
+    grid-template-columns: 1fr;
+  }
+  .insights-metric-row,
+  .insights-metric-row.compact {
+    grid-template-columns: 1fr;
+  }
+}

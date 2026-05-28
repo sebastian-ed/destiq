@@ -13,8 +13,11 @@ let comparisonSelection = { metricKey: '', destinationIds: [] };
 let currentComparisonTablePayload = null;
 let comparisonTableSort = { year: '', direction: 'original', measure: 'annualValue' };
 let comparisonVisibleYears = [];
+let comparisonZoomState = { signature: '', start: 0, span: null };
 let rankingState = { metricKey: '', year: '', direction: 'desc', excludeAggregates: true };
 let currentRankingPayload = null;
+let insightsState = { destinationId: '', scope: 'all', indicatorId: '', periodMode: '__last2__', startYear: '', endYear: '' };
+let currentInsightsPayload = null;
 const groupCollapseState = { sidebar: {}, center: {} };
 const overviewScrollState = {};
 const individualTableSortState = {
@@ -41,6 +44,7 @@ async function initApp() {
     await Promise.all([loadDestinations(), loadIndicators()]);
     renderComparisonControls();
     renderTerritorialRankingControls();
+    await renderAutomaticInsightsControls();
     showEmptyState();
   } catch (e) {
     document.getElementById('destinationList').innerHTML = '<p style="padding:16px;font-size:12px;color:var(--danger)">Error cargando destinos e indicadores</p>';
@@ -1504,6 +1508,519 @@ async function runTerritorialRanking() {
   }
 }
 
+// ── HALLAZGOS AUTOMÁTICOS POR DESTINO ──────────────────────
+function getRealDestinationsForInsights() {
+  return [...destinations].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es'));
+}
+
+function getInsightsDestinationIndicators(destinationId) {
+  return getIndicatorsForDestination(destinationId).filter(ind => ind.destination_id === destinationId);
+}
+
+function getIndicatorDataPointsFromMap(dataByIndicator, indicatorId) {
+  return dataByIndicator?.[indicatorId] || [];
+}
+
+function getYearsFromPoints(points) {
+  return [...new Set((points || []).map(point => Number(point.year)).filter(Number.isFinite))].sort((a, b) => a - b);
+}
+
+function getInsightPeriodYears(allYears, mode = insightsState.periodMode, startYear = insightsState.startYear, endYear = insightsState.endYear) {
+  const years = [...new Set((allYears || []).map(Number).filter(Number.isFinite))].sort((a, b) => a - b);
+  if (!years.length) return [];
+  if (mode === '__last__') return [years[years.length - 1]];
+  if (mode === '__last2__') return years.slice(-2);
+  if (mode === '__last5__') return years.slice(-5);
+  if (mode === '__custom__') {
+    const from = Number(startYear || years[0]);
+    const to = Number(endYear || years[years.length - 1]);
+    const min = Math.min(from, to);
+    const max = Math.max(from, to);
+    return years.filter(year => year >= min && year <= max);
+  }
+  return years;
+}
+
+function getInsightsPeriodLabel(years, allYears = []) {
+  const clean = [...new Set((years || []).map(Number).filter(Number.isFinite))].sort((a, b) => a - b);
+  if (!clean.length) return 'sin período';
+  if (clean.length === 1) return `año ${clean[0]}`;
+  const full = clean.length === allYears.length;
+  return `${full ? 'serie completa' : 'período seleccionado'} ${clean[0]}–${clean[clean.length - 1]}`;
+}
+
+function getMonthLabelForPoint(point) {
+  if (!point) return '—';
+  return `${MONTHS[(Number(point.month) || 1) - 1]} ${point.year}`;
+}
+
+function getBestAndWorstMonthlyPoint(points) {
+  const clean = (points || [])
+    .filter(point => point.value !== null && point.value !== undefined && !isNaN(point.value))
+    .map(point => ({ ...point, value: Number(point.value) }));
+  if (!clean.length) return { best: null, worst: null };
+  const sorted = [...clean].sort((a, b) => a.value - b.value);
+  return { worst: sorted[0], best: sorted[sorted.length - 1] };
+}
+
+function calculateInsightsAppliedMetric(indicator, dataByYear, yearlyStats, years, relatedSeriesMap = {}) {
+  const selectedYears = [...new Set((years || []).map(Number).filter(Number.isFinite))].sort((a, b) => a - b);
+  const annualMeta = getAnnualCalcMeta(getIndicatorCalcMode(indicator));
+  const mode = getIndicatorCalcMode(indicator);
+  if (!selectedYears.length) return { label: annualMeta.shortLabel, value: null, help: 'Sin años seleccionados' };
+  if (selectedYears.length === 1) {
+    const year = selectedYears[0];
+    return {
+      label: `${annualMeta.shortLabel} ${year}`,
+      value: yearlyStats?.[year]?.annualValue ?? null,
+      help: getAppliedMetricHelpText(mode, true),
+    };
+  }
+
+  const values = getValuesForYears(dataByYear, selectedYears);
+  const stats = calcStats(values);
+  if (mode === 'sum') return { label: 'Total del período', value: stats?.sum ?? null, help: 'Suma de todos los meses del período' };
+  if (mode === 'average') return { label: 'Promedio del período', value: stats?.mean ?? null, help: 'Promedio mensual del período' };
+  if (mode === 'last_value') return { label: 'Último valor del período', value: getLastNonNull(values), help: 'Último mes con dato dentro del período' };
+  if (mode === 'max') return { label: 'Máximo del período', value: stats?.max ?? null, help: 'Mayor valor mensual del período' };
+  if (mode === 'min') return { label: 'Mínimo del período', value: stats?.min ?? null, help: 'Menor valor mensual del período' };
+  if (mode === 'ratio_of_sums') {
+    const numeratorKey = String(indicator?.formula_numerator_key || '').trim();
+    const denominatorKey = String(indicator?.formula_denominator_key || '').trim();
+    const multiplier = indicator?.formula_multiplier === null || indicator?.formula_multiplier === undefined || indicator?.formula_multiplier === '' ? 1 : Number(indicator.formula_multiplier);
+    const numerator = sumClean(selectedYears.flatMap(year => relatedSeriesMap?.[numeratorKey]?.[year] || []));
+    const denominator = sumClean(selectedYears.flatMap(year => relatedSeriesMap?.[denominatorKey]?.[year] || []));
+    return { label: 'Valor recalculado del período', value: denominator ? (numerator / denominator) * multiplier : null, help: 'Σ numerador / Σ denominador × multiplicador' };
+  }
+  return { label: annualMeta.shortLabel, value: null, help: annualMeta.description };
+}
+
+function getInsightTrendText(changePct) {
+  if (changePct === null || changePct === undefined || isNaN(changePct)) return 'sin variación calculable';
+  const abs = Math.abs(Number(changePct));
+  if (abs < 3) return 'estabilidad relativa';
+  if (changePct > 0 && abs < 10) return 'crecimiento moderado';
+  if (changePct > 0) return 'crecimiento marcado';
+  if (changePct < 0 && abs < 10) return 'retroceso moderado';
+  return 'retroceso marcado';
+}
+
+function getInsightNarrative(indicator, summary) {
+  const mode = getIndicatorCalcMode(indicator);
+  const annualMeta = getAnnualCalcMeta(mode);
+  const change = summary.changePct;
+  const trend = getInsightTrendText(change);
+  const name = indicator.name || 'el indicador';
+  const periodLabel = summary.periodLabel;
+  const mainValue = formatNumber(summary.appliedMetric?.value);
+  const unit = indicator.unit || '';
+
+  if (summary.selectedYears.length === 1) {
+    return `En ${periodLabel}, ${name} registró ${mainValue}${unit ? ` ${unit}` : ''}. El mayor valor mensual fue ${formatNumber(summary.monthlyBest?.value)} en ${getMonthLabelForPoint(summary.monthlyBest)}, mientras que el mínimo fue ${formatNumber(summary.monthlyWorst?.value)} en ${getMonthLabelForPoint(summary.monthlyWorst)}.`;
+  }
+
+  const variationText = change !== null && change !== undefined && !isNaN(change)
+    ? `${formatPct(change)} entre ${summary.firstYear} y ${summary.lastYear}`
+    : 'sin variación interanual calculable entre extremos del período';
+
+  if (mode === 'ratio_of_sums') {
+    return `Para ${periodLabel}, ${name} muestra ${trend}: ${variationText}. La lectura correcta es recalculada con la fórmula configurada (${annualMeta.label}), no como promedio simple de tasas.`;
+  }
+  if (mode === 'sum') {
+    return `Para ${periodLabel}, ${name} acumuló ${mainValue}${unit ? ` ${unit}` : ''}. La evolución entre extremos marca ${trend}: ${variationText}.`;
+  }
+  return `Para ${periodLabel}, ${name} presenta ${trend}: ${variationText}. La medida aplicada es ${annualMeta.label.toLowerCase()}, por lo que el análisis debe leerse según esa regla y no como suma automática.`;
+}
+
+function buildIndicatorInsightSummary(indicator, destinationIndicators, dataByIndicator, selectedYears, allYears) {
+  const dataPoints = getIndicatorDataPointsFromMap(dataByIndicator, indicator.id);
+  const dataByYear = buildDataByYear(dataPoints);
+  const relatedSeriesMap = buildRelatedSeriesMapForDestination(indicator, destinationIndicators, dataByIndicator);
+  const yearlyStats = calcYearlyStats(dataByYear, { indicator, relatedSeriesMap });
+  const periodYears = selectedYears.filter(year => yearlyStats?.[year] && yearlyStats[year].count !== 0);
+  const periodPoints = dataPoints.filter(point => selectedYears.includes(Number(point.year)));
+  const values = getValuesForYears(dataByYear, selectedYears);
+  const periodStats = calcStats(values);
+  const appliedMetric = calculateInsightsAppliedMetric(indicator, dataByYear, yearlyStats, selectedYears, relatedSeriesMap);
+  const annualRows = selectedYears
+    .map(year => ({ year, value: yearlyStats?.[year]?.annualValue ?? null }))
+    .filter(row => row.value !== null && row.value !== undefined && !isNaN(row.value));
+  const firstRow = annualRows[0] || null;
+  const lastRow = annualRows[annualRows.length - 1] || null;
+  const changePct = firstRow && lastRow && Number(firstRow.value) !== 0
+    ? ((Number(lastRow.value) - Number(firstRow.value)) / Math.abs(Number(firstRow.value))) * 100
+    : null;
+  const bestAnnual = annualRows.length ? [...annualRows].sort((a, b) => Number(b.value) - Number(a.value))[0] : null;
+  const worstAnnual = annualRows.length ? [...annualRows].sort((a, b) => Number(a.value) - Number(b.value))[0] : null;
+  const monthly = getBestAndWorstMonthlyPoint(periodPoints);
+  const periodLabel = getInsightsPeriodLabel(selectedYears, allYears);
+
+  return {
+    indicator,
+    dataByYear,
+    yearlyStats,
+    selectedYears,
+    periodYears,
+    periodLabel,
+    periodStats,
+    appliedMetric,
+    firstYear: firstRow?.year || null,
+    firstValue: firstRow?.value ?? null,
+    lastYear: lastRow?.year || null,
+    lastValue: lastRow?.value ?? null,
+    changePct,
+    bestAnnual,
+    worstAnnual,
+    monthlyBest: monthly.best,
+    monthlyWorst: monthly.worst,
+    narrative: '',
+  };
+}
+
+function populateInsightsDestinationSelect() {
+  const select = document.getElementById('insightsDestinationId');
+  if (!select) return;
+  const list = getRealDestinationsForInsights();
+  const fallback = currentDestination?.id && currentDestination.id !== UNASSIGNED_DESTINATION_ID ? currentDestination.id : (list[0]?.id || '');
+  if (!insightsState.destinationId || !list.some(dest => dest.id === insightsState.destinationId)) insightsState.destinationId = fallback;
+  select.innerHTML = list.length
+    ? list.map(dest => `<option value="${escapeHtml(dest.id)}" ${dest.id === insightsState.destinationId ? 'selected' : ''}>${escapeHtml(dest.name || 'Destino sin nombre')}</option>`).join('')
+    : '<option value="">Sin destinos</option>';
+}
+
+function populateInsightsIndicatorSelect() {
+  const select = document.getElementById('insightsIndicatorId');
+  if (!select) return;
+  const indicatorsForDest = getInsightsDestinationIndicators(insightsState.destinationId);
+  const scope = document.getElementById('insightsScope')?.value || insightsState.scope;
+  insightsState.scope = scope;
+
+  if (!indicatorsForDest.length) {
+    select.innerHTML = '<option value="">Sin indicadores</option>';
+    select.disabled = true;
+    return;
+  }
+
+  const groups = groupIndicatorsByTitle(indicatorsForDest);
+  select.innerHTML = groups.map(group => `
+    <optgroup label="${escapeHtml(group.title)}">
+      ${group.indicators.map(ind => `<option value="${escapeHtml(ind.id)}" ${ind.id === insightsState.indicatorId ? 'selected' : ''}>${escapeHtml(ind.name)}${ind.unit ? ` · ${escapeHtml(ind.unit)}` : ''}</option>`).join('')}
+    </optgroup>
+  `).join('');
+
+  if (!insightsState.indicatorId || !indicatorsForDest.some(ind => ind.id === insightsState.indicatorId)) {
+    insightsState.indicatorId = indicatorsForDest[0]?.id || '';
+    select.value = insightsState.indicatorId;
+  }
+  select.disabled = scope !== 'single';
+}
+
+function populateInsightsYearSelects(years) {
+  const start = document.getElementById('insightsStartYear');
+  const end = document.getElementById('insightsEndYear');
+  if (!start || !end) return;
+  const cleanYears = [...new Set((years || []).map(Number).filter(Number.isFinite))].sort((a, b) => a - b);
+  if (!cleanYears.length) {
+    start.innerHTML = '<option value="">Sin años</option>';
+    end.innerHTML = '<option value="">Sin años</option>';
+    start.disabled = true;
+    end.disabled = true;
+    insightsState.startYear = '';
+    insightsState.endYear = '';
+    return;
+  }
+  if (!cleanYears.includes(Number(insightsState.startYear))) insightsState.startYear = String(cleanYears[0]);
+  if (!cleanYears.includes(Number(insightsState.endYear))) insightsState.endYear = String(cleanYears[cleanYears.length - 1]);
+  const options = cleanYears.map(year => `<option value="${year}">${year}</option>`).join('');
+  start.innerHTML = options;
+  end.innerHTML = options;
+  start.value = insightsState.startYear;
+  end.value = insightsState.endYear;
+  const custom = insightsState.periodMode === '__custom__';
+  start.disabled = !custom;
+  end.disabled = !custom;
+}
+
+async function getInsightsAvailableYears(destinationId) {
+  const destinationIndicators = getInsightsDestinationIndicators(destinationId);
+  const ids = destinationIndicators.map(ind => ind.id);
+  if (!ids.length) return [];
+  const points = await fetchDataPointsForIndicators(ids);
+  return getYearsFromPoints(points);
+}
+
+async function renderAutomaticInsightsControls() {
+  populateInsightsDestinationSelect();
+  populateInsightsIndicatorSelect();
+  const modeEl = document.getElementById('insightsPeriodMode');
+  if (modeEl) modeEl.value = insightsState.periodMode;
+  try {
+    const years = await getInsightsAvailableYears(insightsState.destinationId);
+    populateInsightsYearSelects(years);
+  } catch (_) {
+    populateInsightsYearSelects([]);
+  }
+}
+
+async function handleInsightsDestinationChange() {
+  insightsState.destinationId = document.getElementById('insightsDestinationId')?.value || '';
+  insightsState.indicatorId = '';
+  currentInsightsPayload = null;
+  populateInsightsIndicatorSelect();
+  clearAutomaticInsightsResults('Elegí período y generá los hallazgos automáticos.');
+  try {
+    const years = await getInsightsAvailableYears(insightsState.destinationId);
+    populateInsightsYearSelects(years);
+  } catch (_) {
+    populateInsightsYearSelects([]);
+  }
+}
+
+function handleInsightsScopeChange() {
+  insightsState.scope = document.getElementById('insightsScope')?.value || 'all';
+  populateInsightsIndicatorSelect();
+  clearAutomaticInsightsResults('Elegí el alcance y generá el informe.');
+}
+
+function handleInsightsPeriodModeChange() {
+  insightsState.periodMode = document.getElementById('insightsPeriodMode')?.value || '__all__';
+  populateInsightsYearSelects([...(document.getElementById('insightsStartYear')?.options || [])].map(option => Number(option.value)).filter(Number.isFinite));
+  clearAutomaticInsightsResults('Elegí el período y generá el informe.');
+}
+
+function handleInsightsControlChange() {
+  insightsState.destinationId = document.getElementById('insightsDestinationId')?.value || insightsState.destinationId;
+  insightsState.scope = document.getElementById('insightsScope')?.value || insightsState.scope;
+  insightsState.indicatorId = document.getElementById('insightsIndicatorId')?.value || insightsState.indicatorId;
+  insightsState.periodMode = document.getElementById('insightsPeriodMode')?.value || insightsState.periodMode;
+  insightsState.startYear = document.getElementById('insightsStartYear')?.value || insightsState.startYear;
+  insightsState.endYear = document.getElementById('insightsEndYear')?.value || insightsState.endYear;
+  clearAutomaticInsightsResults('Listo para generar el informe con la nueva selección.');
+}
+
+function clearAutomaticInsightsResults(message = 'Elegí destino, período y generá los hallazgos automáticos.') {
+  const results = document.getElementById('insightsResults');
+  const empty = document.getElementById('insightsEmpty');
+  const badge = document.getElementById('insightsSummaryBadge');
+  if (results) {
+    results.innerHTML = '';
+    results.style.display = 'none';
+  }
+  if (empty) {
+    empty.style.display = 'block';
+    empty.textContent = message;
+  }
+  if (badge) badge.textContent = 'Sin informe';
+}
+
+function getInsightsSelectedIndicators(destinationIndicators) {
+  if (insightsState.scope === 'single') {
+    return destinationIndicators.filter(ind => ind.id === insightsState.indicatorId);
+  }
+  return destinationIndicators;
+}
+
+function getInsightPrioritySummaries(summaries) {
+  const withTrend = summaries
+    .filter(summary => summary.changePct !== null && summary.changePct !== undefined && !isNaN(summary.changePct))
+    .sort((a, b) => Math.abs(Number(b.changePct)) - Math.abs(Number(a.changePct)));
+  return withTrend.slice(0, 4);
+}
+
+function renderInsightKpis({ destination, selectedYears, allYears, summaries }) {
+  const withTrend = summaries.filter(summary => summary.changePct !== null && summary.changePct !== undefined && !isNaN(summary.changePct));
+  const positive = withTrend.filter(summary => summary.changePct > 0).length;
+  const negative = withTrend.filter(summary => summary.changePct < 0).length;
+  const periodLabel = getInsightsPeriodLabel(selectedYears, allYears);
+  const strongest = withTrend.length ? [...withTrend].sort((a, b) => Number(b.changePct) - Number(a.changePct))[0] : null;
+  return `
+    <div class="insights-kpi-grid">
+      <div class="insights-kpi"><span>Destino</span><strong>${escapeHtml(destination?.name || 'Destino sin nombre')}</strong><small>${escapeHtml(periodLabel)}</small></div>
+      <div class="insights-kpi"><span>Indicadores analizados</span><strong>${summaries.length}</strong><small>Con datos en el período</small></div>
+      <div class="insights-kpi"><span>Señales positivas</span><strong>${positive}</strong><small>Indicadores con variación positiva</small></div>
+      <div class="insights-kpi"><span>Señales negativas</span><strong>${negative}</strong><small>Indicadores con variación negativa</small></div>
+      <div class="insights-kpi"><span>Mayor variación positiva</span><strong>${strongest ? formatPct(strongest.changePct) : '-'}</strong><small>${escapeHtml(strongest?.indicator?.name || 'Sin dato suficiente')}</small></div>
+    </div>
+  `;
+}
+
+function renderInsightsExecutiveSummary({ destination, selectedYears, allYears, summaries }) {
+  const periodLabel = getInsightsPeriodLabel(selectedYears, allYears);
+  const priority = getInsightPrioritySummaries(summaries);
+  const intro = `Se analizaron ${summaries.length} indicador${summaries.length !== 1 ? 'es' : ''} con datos para ${destination?.name || 'el destino'} durante ${periodLabel}. El informe respeta la fórmula anual configurada para cada indicador, por lo que los volúmenes se suman, los stocks/promedios se tratan según su regla y las tasas se recalculan desde sus componentes cuando corresponde.`;
+  const signals = priority.length
+    ? priority.map(summary => `<li><strong>${escapeHtml(summary.indicator.name)}:</strong> ${escapeHtml(summary.narrative)}</li>`).join('')
+    : '<li>No hay al menos dos años comparables para calcular variaciones entre extremos del período. El informe queda centrado en niveles, máximos, mínimos y distribución mensual.</li>';
+
+  return `
+    <div class="insights-report-section">
+      <h4>Resumen ejecutivo técnico</h4>
+      <p>${escapeHtml(intro)}</p>
+      <ul class="insights-bullet-list">${signals}</ul>
+    </div>
+  `;
+}
+
+function renderIndicatorInsightCard(summary) {
+  const indicator = summary.indicator;
+  const annualMeta = getAnnualCalcMeta(getIndicatorCalcMode(indicator));
+  const unit = indicator.unit || '';
+  const changeValue = summary.changePct !== null && summary.changePct !== undefined && !isNaN(summary.changePct) ? formatPct(summary.changePct) : '-';
+  const changeClass = summary.changePct > 0 ? 'positive' : summary.changePct < 0 ? 'negative' : '';
+  return `
+    <article class="insights-indicator-card">
+      <div class="insights-indicator-head">
+        <div>
+          <h5>${escapeHtml(indicator.name)}</h5>
+          <span>${escapeHtml(getIndicatorGroupTitle(indicator))} · ${escapeHtml(annualMeta.label)}</span>
+        </div>
+        <strong class="${changeClass}">${changeValue}</strong>
+      </div>
+      <div class="insights-metric-row">
+        <div><span>${escapeHtml(summary.appliedMetric.label)}</span><strong>${formatNumber(summary.appliedMetric.value)}${unit ? ` ${escapeHtml(unit)}` : ''}</strong></div>
+        <div><span>Primer valor anual</span><strong>${summary.firstYear ? `${summary.firstYear}: ${formatNumber(summary.firstValue)}` : '-'}</strong></div>
+        <div><span>Último valor anual</span><strong>${summary.lastYear ? `${summary.lastYear}: ${formatNumber(summary.lastValue)}` : '-'}</strong></div>
+      </div>
+      <div class="insights-metric-row compact">
+        <div><span>Mejor año</span><strong>${summary.bestAnnual ? `${summary.bestAnnual.year}: ${formatNumber(summary.bestAnnual.value)}` : '-'}</strong></div>
+        <div><span>Peor año</span><strong>${summary.worstAnnual ? `${summary.worstAnnual.year}: ${formatNumber(summary.worstAnnual.value)}` : '-'}</strong></div>
+        <div><span>Pico mensual</span><strong>${summary.monthlyBest ? `${getMonthLabelForPoint(summary.monthlyBest)} · ${formatNumber(summary.monthlyBest.value)}` : '-'}</strong></div>
+        <div><span>Mínimo mensual</span><strong>${summary.monthlyWorst ? `${getMonthLabelForPoint(summary.monthlyWorst)} · ${formatNumber(summary.monthlyWorst.value)}` : '-'}</strong></div>
+      </div>
+      <p class="insights-card-narrative">${escapeHtml(summary.narrative)}</p>
+    </article>
+  `;
+}
+
+function renderInsightsByGroup(summaries) {
+  const groups = new Map();
+  summaries.forEach(summary => {
+    const title = getIndicatorGroupTitle(summary.indicator);
+    if (!groups.has(title)) groups.set(title, []);
+    groups.get(title).push(summary);
+  });
+  return [...groups.entries()].map(([title, items]) => `
+    <section class="insights-group-section">
+      <div class="insights-group-title">
+        <h4>${escapeHtml(title)}</h4>
+        <span class="badge badge-blue">${items.length} indicador${items.length !== 1 ? 'es' : ''}</span>
+      </div>
+      <div class="insights-indicator-grid">
+        ${items.map(renderIndicatorInsightCard).join('')}
+      </div>
+    </section>
+  `).join('');
+}
+
+function buildInsightsPlainText(payload) {
+  const { destination, selectedYears, allYears, summaries } = payload;
+  const lines = [];
+  lines.push(`Informe técnico automático · ${destination?.name || 'Destino sin nombre'}`);
+  lines.push(`Período: ${getInsightsPeriodLabel(selectedYears, allYears)}`);
+  lines.push(`Indicadores analizados: ${summaries.length}`);
+  lines.push('');
+  summaries.forEach((summary, index) => {
+    lines.push(`${index + 1}. ${summary.indicator.name}`);
+    lines.push(`   Medida principal: ${summary.appliedMetric.label}: ${formatNumber(summary.appliedMetric.value)} ${summary.indicator.unit || ''}`.trim());
+    lines.push(`   Variación entre extremos: ${summary.changePct !== null && summary.changePct !== undefined && !isNaN(summary.changePct) ? formatPct(summary.changePct) : 'sin dato'}`);
+    lines.push(`   Lectura: ${summary.narrative}`);
+    lines.push('');
+  });
+  return lines.join('\n');
+}
+
+async function copyInsightsReport() {
+  if (!currentInsightsPayload) return;
+  try {
+    await navigator.clipboard.writeText(buildInsightsPlainText(currentInsightsPayload));
+    toast('Informe copiado al portapapeles', 'success');
+  } catch (_) {
+    toast('No pude copiar el informe automáticamente', 'error');
+  }
+}
+
+async function runAutomaticInsights() {
+  insightsState.destinationId = document.getElementById('insightsDestinationId')?.value || insightsState.destinationId;
+  insightsState.scope = document.getElementById('insightsScope')?.value || insightsState.scope;
+  insightsState.indicatorId = document.getElementById('insightsIndicatorId')?.value || insightsState.indicatorId;
+  insightsState.periodMode = document.getElementById('insightsPeriodMode')?.value || insightsState.periodMode;
+  insightsState.startYear = document.getElementById('insightsStartYear')?.value || insightsState.startYear;
+  insightsState.endYear = document.getElementById('insightsEndYear')?.value || insightsState.endYear;
+
+  const results = document.getElementById('insightsResults');
+  const empty = document.getElementById('insightsEmpty');
+  const badge = document.getElementById('insightsSummaryBadge');
+  const destination = destinations.find(dest => dest.id === insightsState.destinationId) || null;
+  if (!destination) {
+    clearAutomaticInsightsResults('Seleccioná un destino para generar el informe.');
+    return;
+  }
+
+  const destinationIndicators = getInsightsDestinationIndicators(destination.id);
+  const selectedIndicators = getInsightsSelectedIndicators(destinationIndicators);
+  if (!selectedIndicators.length) {
+    clearAutomaticInsightsResults('Ese destino no tiene indicadores para analizar.');
+    return;
+  }
+
+  if (results) {
+    results.style.display = 'block';
+    results.innerHTML = '<div class="ranking-loading"><div class="spinner"></div><span>Generando informe técnico automático...</span></div>';
+  }
+  if (empty) empty.style.display = 'none';
+  if (badge) badge.textContent = 'Calculando';
+
+  try {
+    const ids = destinationIndicators.map(ind => ind.id);
+    const points = await fetchDataPointsForIndicators(ids);
+    const dataByIndicator = buildDataByIndicator(points);
+    const allYears = getYearsFromPoints(points);
+    const selectedYears = getInsightPeriodYears(allYears, insightsState.periodMode, insightsState.startYear, insightsState.endYear);
+
+    if (!selectedYears.length) {
+      clearAutomaticInsightsResults('No hay datos cargados para el período seleccionado.');
+      return;
+    }
+
+    const summaries = selectedIndicators
+      .map(indicator => buildIndicatorInsightSummary(indicator, destinationIndicators, dataByIndicator, selectedYears, allYears))
+      .filter(summary => summary.periodStats && summary.periodStats.count > 0 || summary.appliedMetric?.value !== null && summary.appliedMetric?.value !== undefined && !isNaN(summary.appliedMetric.value))
+      .map(summary => ({ ...summary, narrative: getInsightNarrative(summary.indicator, summary) }));
+
+    if (!summaries.length) {
+      clearAutomaticInsightsResults('No hay indicadores con datos en ese período.');
+      return;
+    }
+
+    currentInsightsPayload = { destination, selectedYears, allYears, summaries };
+    if (badge) badge.textContent = `${summaries.length} indicador${summaries.length !== 1 ? 'es' : ''}`;
+    if (results) {
+      results.style.display = 'block';
+      results.innerHTML = `
+        <div class="insights-result-header">
+          <div>
+            <h4>Informe técnico automático · ${escapeHtml(destination.name || 'Destino sin nombre')}</h4>
+            <p>${escapeHtml(getInsightsPeriodLabel(selectedYears, allYears))} · ${summaries.length} indicador${summaries.length !== 1 ? 'es' : ''} con datos · reglas EOH configuradas respetadas</p>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="copyInsightsReport()">Copiar informe</button>
+        </div>
+        ${renderInsightKpis({ destination, selectedYears, allYears, summaries })}
+        ${renderInsightsExecutiveSummary({ destination, selectedYears, allYears, summaries })}
+        ${renderInsightsByGroup(summaries)}
+      `;
+    }
+  } catch (error) {
+    currentInsightsPayload = null;
+    if (results) results.style.display = 'none';
+    if (empty) {
+      empty.style.display = 'block';
+      empty.textContent = 'No pude generar el informe: ' + error.message;
+    }
+    if (badge) badge.textContent = 'Error';
+  }
+}
+
+
 function renderComparisonMetricOptions(options, selectedMetric) {
   const metricSelect = document.getElementById('compareMetricKey');
   if (!options.length) {
@@ -1663,6 +2180,9 @@ function clearComparisonResults() {
   destroyComparisonChart();
   currentComparisonTablePayload = null;
   comparisonVisibleYears = [];
+  comparisonZoomState = { signature: '', start: 0, span: null };
+  const zoomControls = document.getElementById('comparisonZoomControls');
+  if (zoomControls) { zoomControls.style.display = 'none'; zoomControls.innerHTML = ''; }
   const sortControls = document.getElementById('comparisonTableSortControls');
   if (sortControls) sortControls.style.display = 'none';
   document.getElementById('compareEmpty').style.display = 'block';
@@ -1823,6 +2343,144 @@ function getComparisonMonthlyValue(item, periodKey) {
   return value === null || value === undefined || isNaN(Number(value)) ? null : Number(value);
 }
 
+
+function getComparisonZoomSignature(labels, payload = currentComparisonTablePayload) {
+  const seriesNames = (payload?.series || []).map(item => item.destinationName || '').join('|');
+  return `${labels.length}|${labels[0] || ''}|${labels[labels.length - 1] || ''}|${seriesNames}`;
+}
+
+function resetComparisonZoom(labels = []) {
+  comparisonZoomState = {
+    signature: getComparisonZoomSignature(labels),
+    start: 0,
+    span: labels.length || null,
+  };
+}
+
+function clampComparisonZoom(total) {
+  if (!total) {
+    comparisonZoomState.start = 0;
+    comparisonZoomState.span = null;
+    return;
+  }
+  const minSpan = Math.min(6, total);
+  let span = Number(comparisonZoomState.span);
+  if (!Number.isFinite(span) || span < minSpan) span = total;
+  span = Math.max(minSpan, Math.min(total, Math.round(span)));
+  let start = Number(comparisonZoomState.start);
+  if (!Number.isFinite(start)) start = 0;
+  start = Math.max(0, Math.min(total - span, Math.round(start)));
+  comparisonZoomState.span = span;
+  comparisonZoomState.start = start;
+}
+
+function getComparisonZoomWindow(labels = []) {
+  const total = labels.length;
+  const signature = getComparisonZoomSignature(labels);
+  if (comparisonZoomState.signature !== signature) {
+    resetComparisonZoom(labels);
+  }
+  clampComparisonZoom(total);
+  const start = comparisonZoomState.start || 0;
+  const span = comparisonZoomState.span || total;
+  return {
+    start,
+    end: Math.min(total, start + span),
+    span,
+    total,
+    isZoomed: total > 0 && span < total,
+  };
+}
+
+function applyComparisonZoomToSeries(labels, series) {
+  const windowInfo = getComparisonZoomWindow(labels);
+  if (!windowInfo.isZoomed) {
+    return { labels, series, windowInfo };
+  }
+  const slicedLabels = labels.slice(windowInfo.start, windowInfo.end);
+  const slicedSeries = (series || []).map(item => ({
+    ...item,
+    values: (item.values || []).slice(windowInfo.start, windowInfo.end),
+  }));
+  return { labels: slicedLabels, series: slicedSeries, windowInfo };
+}
+
+function renderComparisonZoomControls(labels = [], monthlyMode = isMonthlyComparisonMode()) {
+  const controls = document.getElementById('comparisonZoomControls');
+  if (!controls) return;
+  if (!monthlyMode || labels.length <= 18) {
+    controls.style.display = 'none';
+    controls.innerHTML = '';
+    return;
+  }
+  const windowInfo = getComparisonZoomWindow(labels);
+  const firstLabel = labels[windowInfo.start] || '';
+  const lastLabel = labels[Math.max(windowInfo.end - 1, 0)] || '';
+  const maxStart = Math.max(0, windowInfo.total - windowInfo.span);
+  controls.style.display = 'flex';
+  controls.innerHTML = `
+    <div class="comparison-zoom-main">
+      <span class="comparison-zoom-label">Zoom del gráfico</span>
+      <button class="btn btn-secondary btn-sm" type="button" onclick="moveComparisonZoom(-1)" ${windowInfo.start <= 0 ? 'disabled' : ''}>←</button>
+      <button class="btn btn-secondary btn-sm" type="button" onclick="changeComparisonZoom(1)">+ Zoom</button>
+      <button class="btn btn-secondary btn-sm" type="button" onclick="changeComparisonZoom(-1)" ${!windowInfo.isZoomed ? 'disabled' : ''}>− Zoom</button>
+      <button class="btn btn-ghost btn-sm" type="button" onclick="resetComparisonZoomAndRender()" ${!windowInfo.isZoomed && windowInfo.start === 0 ? 'disabled' : ''}>Ver todo</button>
+      <button class="btn btn-secondary btn-sm" type="button" onclick="moveComparisonZoom(1)" ${windowInfo.end >= windowInfo.total ? 'disabled' : ''}>→</button>
+    </div>
+    <div class="comparison-zoom-range-wrap">
+      <input class="comparison-zoom-range" type="range" min="0" max="${maxStart}" value="${windowInfo.start}" ${maxStart <= 0 ? 'disabled' : ''} oninput="setComparisonZoomStart(this.value)"/>
+      <span class="comparison-zoom-info">${escapeHtml(firstLabel)} – ${escapeHtml(lastLabel)} · ${windowInfo.end - windowInfo.start} de ${windowInfo.total} meses</span>
+    </div>
+  `;
+}
+
+function rerenderComparisonChartOnly() {
+  renderComparisonChartFromPayload(currentComparisonTablePayload);
+}
+
+function changeComparisonZoom(direction) {
+  const payload = currentComparisonTablePayload;
+  if (!payload || !isMonthlyComparisonMode()) return;
+  const labels = getComparisonMonthlyPeriods(payload, getComparisonVisibleYears(payload)).map(formatComparisonPeriodLabel);
+  const windowInfo = getComparisonZoomWindow(labels);
+  if (!windowInfo.total) return;
+  const center = windowInfo.start + windowInfo.span / 2;
+  const minSpan = Math.min(6, windowInfo.total);
+  const factor = direction > 0 ? 0.6 : 1.6;
+  const nextSpan = Math.max(minSpan, Math.min(windowInfo.total, Math.round(windowInfo.span * factor)));
+  comparisonZoomState.span = nextSpan;
+  comparisonZoomState.start = Math.max(0, Math.min(windowInfo.total - nextSpan, Math.round(center - nextSpan / 2)));
+  rerenderComparisonChartOnly();
+}
+
+function moveComparisonZoom(direction) {
+  const payload = currentComparisonTablePayload;
+  if (!payload || !isMonthlyComparisonMode()) return;
+  const labels = getComparisonMonthlyPeriods(payload, getComparisonVisibleYears(payload)).map(formatComparisonPeriodLabel);
+  const windowInfo = getComparisonZoomWindow(labels);
+  const step = Math.max(1, Math.round(windowInfo.span * 0.5));
+  comparisonZoomState.start = Math.max(0, Math.min(windowInfo.total - windowInfo.span, windowInfo.start + (direction * step)));
+  rerenderComparisonChartOnly();
+}
+
+function setComparisonZoomStart(value) {
+  const payload = currentComparisonTablePayload;
+  if (!payload || !isMonthlyComparisonMode()) return;
+  const labels = getComparisonMonthlyPeriods(payload, getComparisonVisibleYears(payload)).map(formatComparisonPeriodLabel);
+  const windowInfo = getComparisonZoomWindow(labels);
+  comparisonZoomState.start = Math.max(0, Math.min(windowInfo.total - windowInfo.span, Number(value) || 0));
+  rerenderComparisonChartOnly();
+}
+
+function resetComparisonZoomAndRender() {
+  const payload = currentComparisonTablePayload;
+  const labels = payload && isMonthlyComparisonMode()
+    ? getComparisonMonthlyPeriods(payload, getComparisonVisibleYears(payload)).map(formatComparisonPeriodLabel)
+    : [];
+  resetComparisonZoom(labels);
+  rerenderComparisonChartOnly();
+}
+
 function getComparisonMeasureValue(item, year, measure = comparisonTableSort.measure) {
   if (isMonthlyComparisonMode(measure)) return null;
   if (!year) return null;
@@ -1856,7 +2514,9 @@ function resetComparisonTableSortForYears(years = [], payload = null) {
 }
 
 function handleComparisonSortChange() {
+  const previousMeasure = comparisonTableSort.measure;
   comparisonTableSort.measure = document.getElementById('comparisonMeasure')?.value || 'annualValue';
+  if (previousMeasure !== comparisonTableSort.measure) comparisonZoomState = { signature: '', start: 0, span: null };
   comparisonTableSort.year = document.getElementById('comparisonSortYear')?.value || '';
   comparisonTableSort.direction = document.getElementById('comparisonSortDirection')?.value || 'original';
   if (isMonthlyComparisonMode(comparisonTableSort.measure)) {
@@ -1963,10 +2623,16 @@ function renderComparisonChartFromPayload(payload = currentComparisonTablePayloa
   const metricName = payload.indicatorName || payload.series?.[0]?.indicator?.name || 'Indicador';
   const monthlyMode = isMonthlyComparisonMode();
   const periods = monthlyMode ? getComparisonMonthlyPeriods(payload, visibleYears) : [];
+  const rawChartLabels = monthlyMode ? periods.map(formatComparisonPeriodLabel) : visibleYears.map(String);
+  const rawChartSeries = buildComparisonChartSeries(payload);
+  const zoomedChart = monthlyMode
+    ? applyComparisonZoomToSeries(rawChartLabels, rawChartSeries)
+    : { labels: rawChartLabels, series: rawChartSeries };
+  renderComparisonZoomControls(rawChartLabels, monthlyMode);
   renderComparisonChart('comparisonChart', {
     years: monthlyMode ? [] : visibleYears,
-    labels: monthlyMode ? periods.map(formatComparisonPeriodLabel) : null,
-    series: buildComparisonChartSeries(payload),
+    labels: zoomedChart.labels,
+    series: zoomedChart.series,
     unit: payload.unit || '',
     measureLabel: activeMeasure.label,
   });
