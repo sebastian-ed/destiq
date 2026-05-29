@@ -1930,31 +1930,79 @@ function getInsightTrendText(changePct) {
   return 'retroceso marcado';
 }
 
-function getInsightNarrative(indicator, summary) {
+function formatInsightValue(value, unit = '') {
+  if (value === null || value === undefined || isNaN(value)) return 'sin dato';
+  const cleanUnit = String(unit || '').trim();
+  return `${formatNumber(value)}${cleanUnit ? ` ${cleanUnit}` : ''}`;
+}
+
+function getInsightCalcMethodText(indicator) {
   const mode = getIndicatorCalcMode(indicator);
-  const annualMeta = getAnnualCalcMeta(mode);
-  const change = summary.changePct;
-  const trend = getInsightTrendText(change);
-  const name = indicator.name || 'el indicador';
-  const periodLabel = summary.periodLabel;
-  const mainValue = formatNumber(summary.appliedMetric?.value);
+  const meta = getAnnualCalcMeta(mode);
+  if (mode === 'sum') return 'se trata como volumen acumulable del período';
+  if (mode === 'average') return 'se informa como promedio de los meses cargados';
+  if (mode === 'last_value') return 'se toma el último valor disponible del período';
+  if (mode === 'max') return 'se toma el máximo mensual del período';
+  if (mode === 'min') return 'se toma el mínimo mensual del período';
+  if (mode === 'ratio_of_sums') return 'se recalcula con numerador y denominador, no por suma ni promedio simple de tasas';
+  return meta.description || 'se aplica la regla configurada para el indicador';
+}
+
+function getInsightVariationPhrase(summary, unit = '') {
+  const hasChange = summary.changePct !== null && summary.changePct !== undefined && !isNaN(summary.changePct);
+  if (!summary.firstYear || !summary.lastYear || summary.firstYear === summary.lastYear) {
+    return 'No corresponde calcular variación entre años porque el período seleccionado contiene un único año con dato.';
+  }
+  const from = formatInsightValue(summary.firstValue, unit);
+  const to = formatInsightValue(summary.lastValue, unit);
+  if (!hasChange) {
+    return `Entre ${summary.firstYear} y ${summary.lastYear}, el indicador pasó de ${from} a ${to}; la variación porcentual no es calculable por falta de base válida.`;
+  }
+  const diff = Number(summary.lastValue) - Number(summary.firstValue);
+  const direction = diff > 0 ? 'un incremento' : diff < 0 ? 'una disminución' : 'una variación nula';
+  return `Entre ${summary.firstYear} y ${summary.lastYear}, el indicador pasó de ${from} a ${to}. Esto implicó ${direction} de ${formatInsightValue(Math.abs(diff), unit)} y una variación de ${formatPct(summary.changePct)}.`;
+}
+
+function getInsightAnnualExtremesPhrase(summary, unit = '') {
+  if (!summary.bestAnnual && !summary.worstAnnual) return '';
+  if (summary.bestAnnual?.year === summary.worstAnnual?.year) {
+    return `El único año disponible para la lectura anual fue ${summary.bestAnnual.year}, con ${formatInsightValue(summary.bestAnnual.value, unit)}.`;
+  }
+  return `El mejor registro anual del período se observó en ${summary.bestAnnual?.year || '—'}, con ${formatInsightValue(summary.bestAnnual?.value, unit)}, mientras que el menor registro correspondió a ${summary.worstAnnual?.year || '—'}, con ${formatInsightValue(summary.worstAnnual?.value, unit)}.`;
+}
+
+function getInsightMonthlyExtremesPhrase(summary, unit = '') {
+  if (!summary.monthlyBest && !summary.monthlyWorst) return '';
+  if (summary.monthlyBest?.year === summary.monthlyWorst?.year && summary.monthlyBest?.month === summary.monthlyWorst?.month) {
+    return `A nivel mensual, el único dato disponible fue ${getMonthLabelForPoint(summary.monthlyBest)}, con ${formatInsightValue(summary.monthlyBest?.value, unit)}.`;
+  }
+  return `En la apertura mensual, el pico fue ${formatInsightValue(summary.monthlyBest?.value, unit)} en ${getMonthLabelForPoint(summary.monthlyBest)}, y el mínimo fue ${formatInsightValue(summary.monthlyWorst?.value, unit)} en ${getMonthLabelForPoint(summary.monthlyWorst)}.`;
+}
+
+function getInsightTechnicalNarrative(summary) {
+  const indicator = summary.indicator;
   const unit = indicator.unit || '';
+  const name = indicator.name || 'El indicador';
+  const annualMeta = getAnnualCalcMeta(getIndicatorCalcMode(indicator));
+  const applied = `${summary.appliedMetric?.label || annualMeta.shortLabel}: ${formatInsightValue(summary.appliedMetric?.value, unit)}`;
+  const method = getInsightCalcMethodText(indicator);
 
   if (summary.selectedYears.length === 1) {
-    return `En ${periodLabel}, ${name} registró ${mainValue}${unit ? ` ${unit}` : ''}. El mayor valor mensual fue ${formatNumber(summary.monthlyBest?.value)} en ${getMonthLabelForPoint(summary.monthlyBest)}, mientras que el mínimo fue ${formatNumber(summary.monthlyWorst?.value)} en ${getMonthLabelForPoint(summary.monthlyWorst)}.`;
+    const year = summary.selectedYears[0];
+    const annualSentence = `${name} registró en ${year} un valor de ${formatInsightValue(summary.appliedMetric?.value, unit)}. La lectura corresponde a ${annualMeta.label.toLowerCase()}; ${method}.`;
+    const monthlySentence = getInsightMonthlyExtremesPhrase(summary, unit);
+    return [annualSentence, monthlySentence].filter(Boolean).join(' ');
   }
 
-  const variationText = change !== null && change !== undefined && !isNaN(change)
-    ? `${formatPct(change)} entre ${summary.firstYear} y ${summary.lastYear}`
-    : 'sin variación interanual calculable entre extremos del período';
+  const opening = `Para ${summary.periodLabel}, ${name} presentó como medida principal ${applied}. La lectura metodológica aplicada indica que ${method}.`;
+  const variation = getInsightVariationPhrase(summary, unit);
+  const annualExtremes = getInsightAnnualExtremesPhrase(summary, unit);
+  const monthlyExtremes = getInsightMonthlyExtremesPhrase(summary, unit);
+  return [opening, variation, annualExtremes, monthlyExtremes].filter(Boolean).join(' ');
+}
 
-  if (mode === 'ratio_of_sums') {
-    return `Para ${periodLabel}, ${name} muestra ${trend}: ${variationText}. La lectura correcta es recalculada con la fórmula configurada (${annualMeta.label}), no como promedio simple de tasas.`;
-  }
-  if (mode === 'sum') {
-    return `Para ${periodLabel}, ${name} acumuló ${mainValue}${unit ? ` ${unit}` : ''}. La evolución entre extremos marca ${trend}: ${variationText}.`;
-  }
-  return `Para ${periodLabel}, ${name} presenta ${trend}: ${variationText}. La medida aplicada es ${annualMeta.label.toLowerCase()}, por lo que el análisis debe leerse según esa regla y no como suma automática.`;
+function getInsightNarrative(indicator, summary) {
+  return getInsightTechnicalNarrative(summary);
 }
 
 function buildIndicatorInsightSummary(indicator, destinationIndicators, dataByIndicator, selectedYears, allYears) {
@@ -2171,17 +2219,37 @@ function renderInsightKpis({ destination, selectedYears, allYears, summaries }) 
 
 function renderInsightsExecutiveSummary({ destination, selectedYears, allYears, summaries }) {
   const periodLabel = getInsightsPeriodLabel(selectedYears, allYears);
-  const priority = getInsightPrioritySummaries(summaries);
-  const intro = `Se analizaron ${summaries.length} indicador${summaries.length !== 1 ? 'es' : ''} con datos para ${destination?.name || 'el destino'} durante ${periodLabel}. El informe respeta la fórmula anual configurada para cada indicador, por lo que los volúmenes se suman, los stocks/promedios se tratan según su regla y las tasas se recalculan desde sus componentes cuando corresponde.`;
-  const signals = priority.length
-    ? priority.map(summary => `<li><strong>${escapeHtml(summary.indicator.name)}:</strong> ${escapeHtml(summary.narrative)}</li>`).join('')
-    : '<li>No hay al menos dos años comparables para calcular variaciones entre extremos del período. El informe queda centrado en niveles, máximos, mínimos y distribución mensual.</li>';
+  const withTrend = summaries.filter(summary => summary.changePct !== null && summary.changePct !== undefined && !isNaN(summary.changePct));
+  const positive = withTrend.filter(summary => summary.changePct > 0).length;
+  const negative = withTrend.filter(summary => summary.changePct < 0).length;
+  const stable = withTrend.filter(summary => Math.abs(Number(summary.changePct)) < 3).length;
+  const intro = `Se analizaron ${summaries.length} indicador${summaries.length !== 1 ? 'es' : ''} con datos para ${destination?.name || 'el destino'} durante ${periodLabel}. El informe respeta la regla anual configurada para cada indicador: los volúmenes acumulables se suman, los indicadores de stock o promedio se leen según su método definido y las tasas o ratios se recalculan desde numerador y denominador cuando corresponde.`;
+  const balance = withTrend.length
+    ? `Entre los indicadores con extremos comparables, ${positive} mostraron variación positiva, ${negative} variación negativa y ${stable} se ubicaron en un rango de estabilidad relativa menor a 3%. Estas señales son descriptivas y no implican causalidad.`
+    : 'No hay suficientes extremos temporales comparables para calcular variaciones porcentuales de manera consistente; por eso el análisis se concentra en niveles, máximos, mínimos y comportamiento mensual.';
+
+  const grouped = new Map();
+  summaries.forEach(summary => {
+    const title = getIndicatorGroupTitle(summary.indicator);
+    if (!grouped.has(title)) grouped.set(title, []);
+    grouped.get(title).push(summary);
+  });
+
+  const groupsHtml = [...grouped.entries()].map(([title, items]) => `
+    <div class="insights-executive-group">
+      <h5>${escapeHtml(title)}</h5>
+      ${items.map(summary => `<p><strong>${escapeHtml(summary.indicator.name)}.</strong> ${escapeHtml(summary.narrative)}</p>`).join('')}
+    </div>
+  `).join('');
 
   return `
-    <div class="insights-report-section">
+    <div class="insights-report-section insights-executive-report">
       <h4>Resumen ejecutivo técnico</h4>
       <p>${escapeHtml(intro)}</p>
-      <ul class="insights-bullet-list">${signals}</ul>
+      <p>${escapeHtml(balance)}</p>
+      <div class="insights-executive-body">
+        ${groupsHtml}
+      </div>
     </div>
   `;
 }
@@ -2239,18 +2307,37 @@ function renderInsightsByGroup(summaries) {
 
 function buildInsightsPlainText(payload) {
   const { destination, selectedYears, allYears, summaries } = payload;
+  const periodLabel = getInsightsPeriodLabel(selectedYears, allYears);
+  const withTrend = summaries.filter(summary => summary.changePct !== null && summary.changePct !== undefined && !isNaN(summary.changePct));
+  const positive = withTrend.filter(summary => summary.changePct > 0).length;
+  const negative = withTrend.filter(summary => summary.changePct < 0).length;
+  const stable = withTrend.filter(summary => Math.abs(Number(summary.changePct)) < 3).length;
   const lines = [];
   lines.push(`Informe técnico automático · ${destination?.name || 'Destino sin nombre'}`);
-  lines.push(`Período: ${getInsightsPeriodLabel(selectedYears, allYears)}`);
+  lines.push(`Período: ${periodLabel}`);
   lines.push(`Indicadores analizados: ${summaries.length}`);
+  lines.push(`Balance: ${positive} positivos · ${negative} negativos · ${stable} estables relativos (<3%)`);
+  lines.push('Criterio metodológico: se respetan las reglas anuales configuradas por indicador; los volúmenes se suman, los stocks/promedios se leen según su regla y las tasas/ratios se recalculan desde numerador y denominador cuando corresponde.');
   lines.push('');
-  summaries.forEach((summary, index) => {
-    lines.push(`${index + 1}. ${summary.indicator.name}`);
-    lines.push(`   Medida principal: ${summary.appliedMetric.label}: ${formatNumber(summary.appliedMetric.value)} ${summary.indicator.unit || ''}`.trim());
-    lines.push(`   Variación entre extremos: ${summary.changePct !== null && summary.changePct !== undefined && !isNaN(summary.changePct) ? formatPct(summary.changePct) : 'sin dato'}`);
-    lines.push(`   Lectura: ${summary.narrative}`);
+
+  const grouped = new Map();
+  summaries.forEach(summary => {
+    const title = getIndicatorGroupTitle(summary.indicator);
+    if (!grouped.has(title)) grouped.set(title, []);
+    grouped.get(title).push(summary);
+  });
+
+  [...grouped.entries()].forEach(([title, items]) => {
+    lines.push(title.toUpperCase());
+    items.forEach((summary, index) => {
+      lines.push(`${index + 1}. ${summary.indicator.name}`);
+      lines.push(`   ${summary.narrative}`);
+      lines.push(`   Medida principal: ${summary.appliedMetric.label}: ${formatNumber(summary.appliedMetric.value)} ${summary.indicator.unit || ''}`.trim());
+      lines.push(`   Variación entre extremos: ${summary.changePct !== null && summary.changePct !== undefined && !isNaN(summary.changePct) ? formatPct(summary.changePct) : 'sin dato'}`);
+    });
     lines.push('');
   });
+
   return lines.join('\n');
 }
 

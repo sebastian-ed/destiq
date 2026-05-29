@@ -2128,3 +2128,40 @@ input, select, textarea { font-family: inherit; }
     grid-template-columns: 1fr;
   }
 }
+
+/* Mejora de rigurosidad del informe automático */
+.insights-executive-report {
+  display: grid;
+  gap: 12px;
+}
+.insights-executive-body {
+  display: grid;
+  gap: 14px;
+  margin-top: 4px;
+}
+.insights-executive-group {
+  border: 1px solid var(--border-light);
+  background: rgba(15,23,42,.32);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+.insights-executive-group h5 {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+  margin-bottom: 10px;
+}
+.insights-executive-group p {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text-subtle);
+}
+.insights-executive-group p:last-child {
+  margin-bottom: 0;
+}
+.insights-executive-group strong {
+  color: var(--text-primary);
+}
