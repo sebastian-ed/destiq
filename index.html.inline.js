@@ -2084,12 +2084,14 @@ async function runAutomaticInsights() {
     if (results) {
       results.style.display = 'block';
       results.innerHTML = `
-        <div class="insights-result-header">
-          <div>
+        <div class="insights-result-header d-flex flex-column flex-lg-row align-items-stretch align-items-lg-start justify-content-between gap-3">
+          <div class="insights-result-title flex-grow-1 min-w-0">
             <h4>Informe técnico automático · ${escapeHtml(destination.name || 'Destino sin nombre')}</h4>
             <p>${escapeHtml(getInsightsPeriodLabel(selectedYears, allYears))} · ${summaries.length} indicador${summaries.length !== 1 ? 'es' : ''} con datos · reglas EOH configuradas respetadas</p>
           </div>
-          <button class="btn btn-secondary btn-sm" onclick="copyInsightsReport()">Copiar informe</button>
+          <div class="insights-result-actions d-grid d-sm-flex flex-shrink-0">
+            <button class="btn btn-secondary btn-sm" onclick="copyInsightsReport()">Copiar informe</button>
+          </div>
         </div>
         ${renderInsightKpis({ destination, selectedYears, allYears, summaries })}
         ${renderInsightsExecutiveSummary({ destination, selectedYears, allYears, summaries })}

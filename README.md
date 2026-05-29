@@ -269,3 +269,9 @@ El informe respeta la regla anual configurada en cada indicador y genera lectura
 - El resumen ejecutivo técnico ahora incorpora todos los indicadores con datos del alcance seleccionado.
 - El texto se organiza por agrupación de indicadores y respeta la fórmula configurada en cada caso.
 - Para cada indicador informa medida principal, variación entre extremos, máximos/mínimos anuales y extremos mensuales cuando hay datos suficientes.
+
+## Ajuste v2.4.7.24
+
+- Se corrigió el layout del módulo de hallazgos automáticos para que el botón de acción no quede fuera de pantalla.
+- Se incorporó grilla responsive basada en Bootstrap para los controles del informe.
+- Se ajustó el encabezado del informe para que el botón “Copiar informe” se mantenga visible en desktop, tablet y celular.

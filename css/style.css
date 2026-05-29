@@ -2165,3 +2165,60 @@ input, select, textarea { font-family: inherit; }
 .insights-executive-group strong {
   color: var(--text-primary);
 }
+
+
+/* Ajuste responsive con grilla Bootstrap para hallazgos automáticos */
+.insights-controls.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+.insights-controls.row > * {
+  min-width: 0;
+}
+.insights-controls .form-control,
+.insights-controls .btn {
+  width: 100%;
+  min-width: 0;
+}
+.insights-action-col {
+  display: grid;
+  align-items: end;
+}
+.insights-result-header {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.insights-result-title {
+  min-width: 0;
+}
+.insights-result-title h4,
+.insights-result-title p {
+  overflow-wrap: anywhere;
+}
+.insights-result-actions {
+  max-width: 100%;
+}
+.insights-result-actions .btn {
+  white-space: nowrap;
+}
+@media (max-width: 991.98px) {
+  .insights-card-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .insights-result-actions .btn {
+    width: 100%;
+  }
+}
+@media (max-width: 575.98px) {
+  .insights-card-body {
+    padding: 16px;
+  }
+  .insights-result-header {
+    gap: 10px;
+  }
+  .insights-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
