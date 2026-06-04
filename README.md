@@ -252,3 +252,34 @@ El ranking respeta la regla anual configurada en cada indicador: suma, promedio,
 ## Zoom en comparación mensual histórica
 
 La vista de comparación mensual histórica incluye controles de zoom manual para analizar series largas sin perder el gráfico completo. Permite acercar, alejar, desplazarse por la serie y volver a ver todo.
+
+## Hallazgos automáticos por destino
+
+La vista pública incluye un módulo independiente de informe técnico automático por destino.
+
+Permite seleccionar:
+- destino
+- todos los indicadores con datos o un indicador individual
+- serie completa, último año, últimos 2 años, últimos 5 años o rango personalizado
+
+El informe respeta la regla anual configurada en cada indicador y genera lectura técnica de variaciones, niveles, máximos, mínimos, picos mensuales y señales relevantes.
+
+## Hallazgos automáticos v2.4.7.23
+
+- El resumen ejecutivo técnico ahora incorpora todos los indicadores con datos del alcance seleccionado.
+- El texto se organiza por agrupación de indicadores y respeta la fórmula configurada en cada caso.
+- Para cada indicador informa medida principal, variación entre extremos, máximos/mínimos anuales y extremos mensuales cuando hay datos suficientes.
+
+## Ajuste v2.4.7.24
+
+- Se corrigió el layout del módulo de hallazgos automáticos para que el botón de acción no quede fuera de pantalla.
+- Se incorporó grilla responsive basada en Bootstrap para los controles del informe.
+- Se ajustó el encabezado del informe para que el botón “Copiar informe” se mantenga visible en desktop, tablet y celular.
+
+## v2.4.7.25
+
+- En la vista individual del indicador se agregó un botón para alternar el gráfico entre:
+  - **Evolución mensual por año**
+  - **Evolución mensual histórica**
+- La vista histórica mensual incluye controles de zoom, desplazamiento y botón para volver a ver toda la serie.
+- No requiere cambios de base de datos.
