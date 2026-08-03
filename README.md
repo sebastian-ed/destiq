@@ -275,3 +275,11 @@ El informe respeta la regla anual configurada en cada indicador y genera lectura
 - Se corrigió el layout del módulo de hallazgos automáticos para que el botón de acción no quede fuera de pantalla.
 - Se incorporó grilla responsive basada en Bootstrap para los controles del informe.
 - Se ajustó el encabezado del informe para que el botón “Copiar informe” se mantenga visible en desktop, tablet y celular.
+
+## v2.4.7.25
+
+- En la vista individual del indicador se agregó un botón para alternar el gráfico entre:
+  - **Evolución mensual por año**
+  - **Evolución mensual histórica**
+- La vista histórica mensual incluye controles de zoom, desplazamiento y botón para volver a ver toda la serie.
+- No requiere cambios de base de datos.

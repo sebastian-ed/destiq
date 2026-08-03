@@ -2222,3 +2222,31 @@ input, select, textarea { font-family: inherit; }
     grid-template-columns: 1fr;
   }
 }
+
+/* Selector de modo del gráfico individual */
+.chart-card-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.individual-zoom-controls {
+  padding-left: 0;
+  padding-right: 0;
+}
+.chart-card .individual-zoom-controls {
+  padding: 0 0 14px;
+}
+@media (max-width: 768px) {
+  .chart-card-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+/* Valores abreviados: el valor completo se muestra al pasar el cursor. */
+.kpi-value[title],
+.data-table td[title^="Valor completo:"] {
+  cursor: help;
+}

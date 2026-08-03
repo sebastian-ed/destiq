@@ -269,9 +269,13 @@
       <div class="charts-grid">
         <div class="chart-card">
           <div class="chart-card-header">
-            <span class="chart-card-title">Evolución mensual por año</span>
-            <span class="badge badge-blue" id="yearsCount">0 años</span>
+            <span class="chart-card-title" id="lineChartTitle">Evolución mensual por año</span>
+            <div class="chart-card-actions">
+              <span class="badge badge-blue" id="yearsCount">0 años</span>
+              <button class="btn btn-secondary btn-sm" type="button" id="individualChartModeToggle" onclick="toggleIndividualChartMode()">Ver histórica</button>
+            </div>
           </div>
+          <div class="comparison-zoom-controls individual-zoom-controls" id="individualZoomControls" style="display:none"></div>
           <div class="chart-empty" id="lineChartEmpty" style="display:none">Seleccioná al menos un año para visualizar el gráfico.</div>
           <div class="chart-wrap" id="lineChartWrap"><canvas id="lineChart"></canvas></div>
         </div>
@@ -342,6 +346,8 @@ let currentComparisonTablePayload = null;
 let comparisonTableSort = { year: '', direction: 'original', measure: 'annualValue' };
 let comparisonVisibleYears = [];
 let comparisonZoomState = { signature: '', start: 0, span: null };
+let individualChartMode = 'yearly';
+let individualZoomState = { signature: '', start: 0, span: null };
 let rankingState = { metricKey: '', year: '', direction: 'desc', excludeAggregates: true };
 let currentRankingPayload = null;
 let insightsState = { destinationId: '', scope: 'all', indicatorId: '', periodMode: '__last2__', startYear: '', endYear: '' };
@@ -845,6 +851,8 @@ async function selectIndicator(id) {
     currentRelatedSeriesMap = buildRelatedSeriesMapForDestination(currentIndicator, destinationIndicators, dataByIndicator);
     currentYearlyStats = calcYearlyStats(currentDataByYear, { indicator: currentIndicator, relatedSeriesMap: currentRelatedSeriesMap });
     visibleYears = getAvailableYears();
+    individualChartMode = 'yearly';
+    individualZoomState = { signature: '', start: 0, span: null };
     renderDashboard();
     document.getElementById('mainEmpty').style.display = 'none';
     document.getElementById('destinationOverview').style.display = 'none';
@@ -895,30 +903,34 @@ function renderDashboard() {
   const globalAppliedMetric = calculateAppliedMetricForYears(currentIndicator, currentDataByYear, currentYearlyStats, years, currentRelatedSeriesMap, { scope: 'global' });
 
   const selectedKpis = [
-    { label: selectedAppliedMetric.label, value: formatNumber(selectedAppliedMetric.value), sub: selectedAppliedMetric.sub || selectedLabel, accent: '#10B981' },
-    { label: 'Promedio mensual', value: formatNumber(selectedStats?.mean), sub: selectedLabel, accent: 'var(--accent)' },
-    { label: 'Mediana mensual', value: formatNumber(selectedStats?.median), sub: selectedLabel, accent: '#06B6D4' },
-    { label: 'Máximo mensual', value: formatNumber(selectedStats?.max), sub: selectedLabel, accent: '#A855F7' },
-    { label: 'Mínimo mensual', value: formatNumber(selectedStats?.min), sub: selectedLabel, accent: '#F97316' },
-    { label: 'Desvío estándar', value: formatNumber(selectedStats?.stdDev), sub: 'Serie seleccionada', accent: '#EAB308' },
+    { label: selectedAppliedMetric.label, value: formatNumber(selectedAppliedMetric.value), rawValue: selectedAppliedMetric.value, sub: selectedAppliedMetric.sub || selectedLabel, accent: '#10B981' },
+    { label: 'Promedio mensual', value: formatNumber(selectedStats?.mean), rawValue: selectedStats?.mean, sub: selectedLabel, accent: 'var(--accent)' },
+    { label: 'Mediana mensual', value: formatNumber(selectedStats?.median), rawValue: selectedStats?.median, sub: selectedLabel, accent: '#06B6D4' },
+    { label: 'Máximo mensual', value: formatNumber(selectedStats?.max), rawValue: selectedStats?.max, sub: selectedLabel, accent: '#A855F7' },
+    { label: 'Mínimo mensual', value: formatNumber(selectedStats?.min), rawValue: selectedStats?.min, sub: selectedLabel, accent: '#F97316' },
+    { label: 'Desvío estándar', value: formatNumber(selectedStats?.stdDev), rawValue: selectedStats?.stdDev, sub: 'Serie seleccionada', accent: '#EAB308' },
   ];
 
   const globalKpis = [
-    { label: globalAppliedMetric.label, value: formatNumber(globalAppliedMetric.value), sub: globalAppliedMetric.sub || 'Todos los años cargados', accent: '#10B981' },
-    { label: 'Promedio mensual global', value: formatNumber(globalStats?.mean), sub: 'Todos los años cargados', accent: 'var(--accent)' },
-    { label: 'Mediana global', value: formatNumber(globalStats?.median), sub: 'Todos los años cargados', accent: '#06B6D4' },
-    { label: 'Máximo histórico', value: formatNumber(globalStats?.max), sub: 'Toda la serie', accent: '#A855F7' },
-    { label: 'Mínimo histórico', value: formatNumber(globalStats?.min), sub: 'Toda la serie', accent: '#F97316' },
+    { label: globalAppliedMetric.label, value: formatNumber(globalAppliedMetric.value), rawValue: globalAppliedMetric.value, sub: globalAppliedMetric.sub || 'Todos los años cargados', accent: '#10B981' },
+    { label: 'Promedio mensual global', value: formatNumber(globalStats?.mean), rawValue: globalStats?.mean, sub: 'Todos los años cargados', accent: 'var(--accent)' },
+    { label: 'Mediana global', value: formatNumber(globalStats?.median), rawValue: globalStats?.median, sub: 'Todos los años cargados', accent: '#06B6D4' },
+    { label: 'Máximo histórico', value: formatNumber(globalStats?.max), rawValue: globalStats?.max, sub: 'Toda la serie', accent: '#A855F7' },
+    { label: 'Mínimo histórico', value: formatNumber(globalStats?.min), rawValue: globalStats?.min, sub: 'Toda la serie', accent: '#F97316' },
     { label: 'Años cargados', value: years.length ? String(years.length) : '-', sub: years.length ? `${years[0]}–${years[years.length - 1]}` : 'Sin serie', accent: '#EAB308' },
   ];
 
-  const renderKpiCard = (k) => `
-    <div class="kpi-card" style="--accent-color:${k.accent}">
-      <div class="kpi-label">${k.label}</div>
-      <div class="kpi-value">${k.value}</div>
-      ${k.change !== undefined && k.change !== null ? `<div class="kpi-change ${k.change >= 0 ? 'up' : 'down'}">${k.change >= 0 ? '▲' : '▼'} ${formatPct(k.change)}</div>` : k.sub ? `<div class="kpi-sub">${k.sub}</div>` : ''}
-    </div>
-  `;
+  const renderKpiCard = (k) => {
+    const hasFullValue = k.rawValue !== null && k.rawValue !== undefined && !isNaN(k.rawValue);
+    const fullValueTitle = hasFullValue ? ` title="Valor completo: ${formatNumberFull(k.rawValue)}"` : '';
+    return `
+      <div class="kpi-card" style="--accent-color:${k.accent}">
+        <div class="kpi-label">${k.label}</div>
+        <div class="kpi-value"${fullValueTitle}>${k.value}</div>
+        ${k.change !== undefined && k.change !== null ? `<div class="kpi-change ${k.change >= 0 ? 'up' : 'down'}">${k.change >= 0 ? '▲' : '▼'} ${formatPct(k.change)}</div>` : k.sub ? `<div class="kpi-sub">${k.sub}</div>` : ''}
+      </div>
+    `;
+  };
 
   document.getElementById('kpiGrid').innerHTML = `
     <div class="kpi-grid-section-title kpi-grid-full">
@@ -938,12 +950,21 @@ function renderDashboard() {
   const filteredDataByYear = filterDataByYear(currentDataByYear, shownYears);
   const filteredYearlyStats = filterYearlyStats(currentYearlyStats, shownYears);
   const hasVisibleYears = shownYears.length > 0;
+  const historyMode = individualChartMode === 'history';
+  updateIndividualChartHeader(historyMode);
 
   document.getElementById('lineChartEmpty').style.display = hasVisibleYears ? 'none' : 'flex';
   document.getElementById('lineChartWrap').style.display = hasVisibleYears ? 'block' : 'none';
   if (hasVisibleYears) {
-    const filteredMetaByYear = Object.fromEntries(shownYears.map(year => [year, currentDataMetaByYear?.[year] || new Array(12).fill(null)]));
-    renderLineChart('lineChart', filteredDataByYear, currentIndicator, filteredMetaByYear);
+    if (historyMode) {
+      renderIndividualHistoricalChart(shownYears);
+    } else {
+      renderIndividualZoomControls([], false);
+      const filteredMetaByYear = Object.fromEntries(shownYears.map(year => [year, currentDataMetaByYear?.[year] || new Array(12).fill(null)]));
+      renderLineChart('lineChart', filteredDataByYear, currentIndicator, filteredMetaByYear);
+    }
+  } else {
+    renderIndividualZoomControls([], false);
   }
 
   const annualChartCard = document.getElementById('annualChartCard');
@@ -1077,12 +1098,12 @@ function getFocusedYearStatsColumnKey(tableKey) {
 function renderYearStatsValueCell(row, key) {
   const s = row.stats || {};
   if (key === 'year') return `<td><strong>${row.year}</strong></td>`;
-  if (key === 'annual') return `<td>${formatNumber(s?.annualValue)}</td>`;
-  if (key === 'mean') return `<td>${formatNumber(s?.mean)}</td>`;
-  if (key === 'median') return `<td>${formatNumber(s?.median)}</td>`;
-  if (key === 'max') return `<td>${formatNumber(s?.max)}</td>`;
-  if (key === 'min') return `<td>${formatNumber(s?.min)}</td>`;
-  if (key === 'stdDev') return `<td>${formatNumber(s?.stdDev)}</td>`;
+  if (key === 'annual') return `<td title="Valor completo: ${formatNumberFull(s?.annualValue)}">${formatNumber(s?.annualValue)}</td>`;
+  if (key === 'mean') return `<td title="Valor completo: ${formatNumberFull(s?.mean)}">${formatNumber(s?.mean)}</td>`;
+  if (key === 'median') return `<td title="Valor completo: ${formatNumberFull(s?.median)}">${formatNumber(s?.median)}</td>`;
+  if (key === 'max') return `<td title="Valor completo: ${formatNumberFull(s?.max)}">${formatNumber(s?.max)}</td>`;
+  if (key === 'min') return `<td title="Valor completo: ${formatNumberFull(s?.min)}">${formatNumber(s?.min)}</td>`;
+  if (key === 'stdDev') return `<td title="Valor completo: ${formatNumberFull(s?.stdDev)}">${formatNumber(s?.stdDev)}</td>`;
   if (key === 'yoy') {
     const yoy = s?.yoyAnnual;
     return `<td class="${yoy !== undefined && yoy !== null ? (yoy >= 0 ? 'positive' : 'negative') : ''}">${yoy !== undefined && yoy !== null ? formatPct(yoy) : '-'}</td>`;
@@ -1395,6 +1416,179 @@ function filterYearlyStats(yearlyStats, years) {
   const filteredEntries = Object.entries(yearlyStats)
     .filter(([key]) => key === '__meta' || yearSet.has(Number(key)));
   return Object.fromEntries(filteredEntries);
+}
+
+function updateIndividualChartHeader(historyMode = individualChartMode === 'history') {
+  const titleEl = document.getElementById('lineChartTitle');
+  const toggleBtn = document.getElementById('individualChartModeToggle');
+  if (titleEl) titleEl.textContent = historyMode ? 'Evolución mensual histórica' : 'Evolución mensual por año';
+  if (toggleBtn) toggleBtn.textContent = historyMode ? 'Ver por año' : 'Ver histórica';
+}
+
+function toggleIndividualChartMode() {
+  individualChartMode = individualChartMode === 'history' ? 'yearly' : 'history';
+  individualZoomState = { signature: '', start: 0, span: null };
+  renderDashboard();
+}
+
+function getIndividualMonthlyPeriods(yearsFilter = getVisibleYears()) {
+  const periodKeys = [];
+  const allowedYears = new Set((yearsFilter || []).map(year => String(year)));
+  Object.keys(currentDataByYear || {}).sort((a, b) => Number(a) - Number(b)).forEach(year => {
+    if (allowedYears.size && !allowedYears.has(String(year))) return;
+    (currentDataByYear[year] || []).forEach((value, monthIndex) => {
+      if (value === null || value === undefined || isNaN(Number(value))) return;
+      periodKeys.push(`${year}-${String(monthIndex + 1).padStart(2, '0')}`);
+    });
+  });
+  return periodKeys.sort((a, b) => a.localeCompare(b));
+}
+
+function getIndividualMonthlyValue(periodKey) {
+  const [year, month] = String(periodKey || '').split('-');
+  const value = currentDataByYear?.[Number(year)]?.[Number(month) - 1];
+  return value === null || value === undefined || isNaN(Number(value)) ? null : Number(value);
+}
+
+function getIndividualZoomSignature(labels = []) {
+  return `${currentIndicator?.id || ''}|${labels.length}|${labels[0] || ''}|${labels[labels.length - 1] || ''}|${getVisibleYears().join(',')}`;
+}
+
+function resetIndividualZoom(labels = []) {
+  individualZoomState = {
+    signature: getIndividualZoomSignature(labels),
+    start: 0,
+    span: labels.length || null,
+  };
+}
+
+function clampIndividualZoom(total) {
+  if (!total) {
+    individualZoomState.start = 0;
+    individualZoomState.span = null;
+    return;
+  }
+  const minSpan = Math.min(6, total);
+  let span = Number(individualZoomState.span);
+  if (!Number.isFinite(span) || span < minSpan) span = total;
+  span = Math.max(minSpan, Math.min(total, Math.round(span)));
+  let start = Number(individualZoomState.start);
+  if (!Number.isFinite(start)) start = 0;
+  start = Math.max(0, Math.min(total - span, Math.round(start)));
+  individualZoomState.span = span;
+  individualZoomState.start = start;
+}
+
+function getIndividualZoomWindow(labels = []) {
+  const total = labels.length;
+  const signature = getIndividualZoomSignature(labels);
+  if (individualZoomState.signature !== signature) {
+    resetIndividualZoom(labels);
+  }
+  clampIndividualZoom(total);
+  const start = individualZoomState.start || 0;
+  const span = individualZoomState.span || total;
+  return {
+    start,
+    end: Math.min(total, start + span),
+    span,
+    total,
+    isZoomed: total > 0 && span < total,
+  };
+}
+
+function applyIndividualZoomToSeries(labels, series) {
+  const windowInfo = getIndividualZoomWindow(labels);
+  if (!windowInfo.isZoomed) return { labels, series, windowInfo };
+  const slicedLabels = labels.slice(windowInfo.start, windowInfo.end);
+  const slicedSeries = (series || []).map(item => ({
+    ...item,
+    values: (item.values || []).slice(windowInfo.start, windowInfo.end),
+  }));
+  return { labels: slicedLabels, series: slicedSeries, windowInfo };
+}
+
+function renderIndividualZoomControls(labels = [], historyMode = individualChartMode === 'history') {
+  const controls = document.getElementById('individualZoomControls');
+  if (!controls) return;
+  if (!historyMode || labels.length <= 18) {
+    controls.style.display = 'none';
+    controls.innerHTML = '';
+    return;
+  }
+  const windowInfo = getIndividualZoomWindow(labels);
+  const firstLabel = labels[windowInfo.start] || '';
+  const lastLabel = labels[Math.max(windowInfo.end - 1, 0)] || '';
+  const maxStart = Math.max(0, windowInfo.total - windowInfo.span);
+  controls.style.display = 'flex';
+  controls.innerHTML = `
+    <div class="comparison-zoom-main">
+      <span class="comparison-zoom-label">Zoom del gráfico</span>
+      <button class="btn btn-secondary btn-sm" type="button" onclick="moveIndividualZoom(-1)" ${windowInfo.start <= 0 ? 'disabled' : ''}>←</button>
+      <button class="btn btn-secondary btn-sm" type="button" onclick="changeIndividualZoom(1)">+ Zoom</button>
+      <button class="btn btn-secondary btn-sm" type="button" onclick="changeIndividualZoom(-1)" ${!windowInfo.isZoomed ? 'disabled' : ''}>− Zoom</button>
+      <button class="btn btn-ghost btn-sm" type="button" onclick="resetIndividualZoomAndRender()" ${!windowInfo.isZoomed && windowInfo.start === 0 ? 'disabled' : ''}>Ver todo</button>
+      <button class="btn btn-secondary btn-sm" type="button" onclick="moveIndividualZoom(1)" ${windowInfo.end >= windowInfo.total ? 'disabled' : ''}>→</button>
+    </div>
+    <div class="comparison-zoom-range-wrap">
+      <input class="comparison-zoom-range" type="range" min="0" max="${maxStart}" value="${windowInfo.start}" ${maxStart <= 0 ? 'disabled' : ''} oninput="setIndividualZoomStart(this.value)"/>
+      <span class="comparison-zoom-info">${escapeHtml(firstLabel)} – ${escapeHtml(lastLabel)} · ${windowInfo.end - windowInfo.start} de ${windowInfo.total} meses</span>
+    </div>
+  `;
+}
+
+function getIndividualHistoricalLabelsAndSeries(years = getVisibleYears()) {
+  const periods = getIndividualMonthlyPeriods(years);
+  const labels = periods.map(formatComparisonPeriodLabel);
+  const series = [{
+    label: currentDestination ? getDestinationDisplayName(currentDestination) : (currentIndicator?.name || 'Serie histórica'),
+    values: periods.map(getIndividualMonthlyValue),
+  }];
+  return { labels, series };
+}
+
+function renderIndividualHistoricalChart(years = getVisibleYears()) {
+  const raw = getIndividualHistoricalLabelsAndSeries(years);
+  const zoomed = applyIndividualZoomToSeries(raw.labels, raw.series);
+  renderIndividualZoomControls(raw.labels, true);
+  renderHistoricalLineChart('lineChart', zoomed.labels, zoomed.series, currentIndicator, 'Evolución mensual histórica');
+}
+
+function changeIndividualZoom(direction) {
+  if (individualChartMode !== 'history') return;
+  const labels = getIndividualHistoricalLabelsAndSeries(getVisibleYears()).labels;
+  const windowInfo = getIndividualZoomWindow(labels);
+  if (!windowInfo.total) return;
+  const center = windowInfo.start + windowInfo.span / 2;
+  const minSpan = Math.min(6, windowInfo.total);
+  const factor = direction > 0 ? 0.6 : 1.6;
+  const nextSpan = Math.max(minSpan, Math.min(windowInfo.total, Math.round(windowInfo.span * factor)));
+  individualZoomState.span = nextSpan;
+  individualZoomState.start = Math.max(0, Math.min(windowInfo.total - nextSpan, Math.round(center - nextSpan / 2)));
+  renderDashboard();
+}
+
+function moveIndividualZoom(direction) {
+  if (individualChartMode !== 'history') return;
+  const labels = getIndividualHistoricalLabelsAndSeries(getVisibleYears()).labels;
+  const windowInfo = getIndividualZoomWindow(labels);
+  const step = Math.max(1, Math.round(windowInfo.span * 0.5));
+  individualZoomState.start = Math.max(0, Math.min(windowInfo.total - windowInfo.span, windowInfo.start + (direction * step)));
+  renderDashboard();
+}
+
+function setIndividualZoomStart(value) {
+  if (individualChartMode !== 'history') return;
+  const labels = getIndividualHistoricalLabelsAndSeries(getVisibleYears()).labels;
+  const windowInfo = getIndividualZoomWindow(labels);
+  individualZoomState.start = Math.max(0, Math.min(windowInfo.total - windowInfo.span, Number(value) || 0));
+  renderDashboard();
+}
+
+function resetIndividualZoomAndRender() {
+  const labels = individualChartMode === 'history' ? getIndividualHistoricalLabelsAndSeries(getVisibleYears()).labels : [];
+  resetIndividualZoom(labels);
+  renderDashboard();
 }
 
 function showEmptyState() {

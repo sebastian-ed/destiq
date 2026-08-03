@@ -96,7 +96,7 @@ function renderLineChart(canvasId, dataByYear, indicator, dataMetaByYear = {}) {
               if (!item) return '';
               return `${MONTHS[item.dataIndex]} · ${item.dataset.label}`;
             },
-            label: (ctx) => `${formatNumber(ctx.parsed.y)} ${indicator.unit || ''}`,
+            label: (ctx) => `${formatNumberFull(ctx.parsed.y)} ${indicator.unit || ''}`,
             afterLabel: (ctx) => {
               const year = Number(ctx.dataset.label);
               const meta = dataMetaByYear?.[year]?.[ctx.dataIndex] || null;
@@ -114,6 +114,98 @@ function renderLineChart(canvasId, dataByYear, indicator, dataMetaByYear = {}) {
             font: { family: "'DM Sans', sans-serif", size: 11 },
             autoSkip: true,
             maxTicksLimit: MONTHS.length,
+          },
+        },
+        y: {
+          grid: { color: '#1e293b' },
+          ticks: {
+            color: '#64748b',
+            font: { family: "'DM Sans', sans-serif", size: 11 },
+            callback: (v) => formatNumber(v, 0),
+          },
+        }
+      }
+    }
+  });
+  return lineChartInstance;
+}
+
+
+function renderHistoricalLineChart(canvasId, labels, series, indicator, measureLabel = 'Evolución mensual histórica') {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+  if (lineChartInstance) lineChartInstance.destroy();
+
+  const seriesCount = (series || []).length;
+  updateChartDensity(ctx, Math.max(seriesCount, labels.length > 60 ? 12 : seriesCount));
+  const datasets = (series || []).map((item, index) => {
+    const color = YEAR_COLORS[index % YEAR_COLORS.length];
+    return {
+      label: item.label,
+      data: item.values,
+      borderColor: color,
+      backgroundColor: color + '22',
+      borderWidth: 2.5,
+      pointRadius: labels.length > 80 ? 2.5 : 4,
+      pointHoverRadius: 7,
+      pointHitRadius: 18,
+      tension: 0.28,
+      fill: false,
+      spanGaps: true,
+    };
+  });
+
+  lineChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'nearest', intersect: false, axis: 'xy' },
+      plugins: {
+        legend: {
+          display: seriesCount <= 10,
+          position: 'top',
+          labels: {
+            color: '#94a3b8',
+            font: { family: "'DM Sans', sans-serif", size: 12 },
+            usePointStyle: true,
+            pointStyleWidth: 12,
+          }
+        },
+        tooltip: {
+          backgroundColor: '#0f172a',
+          borderColor: '#334155',
+          borderWidth: 1,
+          titleColor: '#e2e8f0',
+          bodyColor: '#cbd5e1',
+          displayColors: true,
+          usePointStyle: true,
+          padding: 12,
+          caretPadding: 8,
+          titleMarginBottom: 8,
+          bodySpacing: 6,
+          boxPadding: 4,
+          titleFont: { family: "'DM Sans', sans-serif", size: 12, weight: '700' },
+          bodyFont: { family: "'DM Sans', sans-serif", size: 12, weight: '500' },
+          callbacks: {
+            title: (items) => {
+              const item = items?.[0];
+              return item ? labels[item.dataIndex] : '';
+            },
+            label: (ctx) => ` ${ctx.dataset.label}: ${formatNumberFull(ctx.parsed.y)} ${indicator?.unit || ''}`,
+            afterLabel: () => measureLabel ? ` Medida: ${measureLabel}` : '',
+          }
+        },
+      },
+      scales: {
+        x: {
+          grid: { color: '#1e293b' },
+          ticks: {
+            color: '#64748b',
+            font: { family: "'DM Sans', sans-serif", size: 11 },
+            autoSkip: true,
+            maxTicksLimit: 12,
           },
         },
         y: {
@@ -168,7 +260,7 @@ function renderBarChart(canvasId, yearlyStats, indicator) {
           titleColor: '#e2e8f0',
           bodyColor: '#94a3b8',
           callbacks: {
-            label: (ctx) => ` ${annualMeta.shortLabel}: ${formatNumber(ctx.parsed.y)} ${indicator.unit || ''}`,
+            label: (ctx) => ` ${annualMeta.shortLabel}: ${formatNumberFull(ctx.parsed.y)} ${indicator.unit || ''}`,
           }
         }
       },
@@ -237,7 +329,7 @@ function renderComparisonChart(canvasId, comparisonPayload) {
           titleColor: '#e2e8f0',
           bodyColor: '#94a3b8',
           callbacks: {
-            label: (ctx) => ` ${ctx.dataset.label}: ${formatNumber(ctx.parsed.y)} ${comparisonPayload.unit || ''}`,
+            label: (ctx) => ` ${ctx.dataset.label}: ${formatNumberFull(ctx.parsed.y)} ${comparisonPayload.unit || ''}`,
             afterLabel: () => comparisonPayload.measureLabel ? ` Medida: ${comparisonPayload.measureLabel}` : '',
           }
         },
