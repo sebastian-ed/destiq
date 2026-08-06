@@ -62,7 +62,16 @@
           <div class="chart-card" style="margin-bottom:16px">
             <div class="chart-card-header">
               <span class="chart-card-title" id="compareChartTitle">Comparación anual</span>
-              <span class="chart-card-note" id="compareChartNote"></span>
+              <div class="chart-card-actions">
+                <span class="chart-card-note" id="compareChartNote"></span>
+                <details class="export-menu">
+                  <summary class="btn btn-secondary btn-sm">Descargar ▾</summary>
+                  <div class="export-menu-popover">
+                    <button type="button" onclick="downloadChartAsset('comparisonChart','png')"><strong>PNG HD</strong><span>Ideal para Word y PowerPoint</span></button>
+                    <button type="button" onclick="downloadChartAsset('comparisonChart','pdf')"><strong>PDF</strong><span>Alta calidad para compartir</span></button>
+                  </div>
+                </details>
+              </div>
             </div>
             <div class="comparison-zoom-controls" id="comparisonZoomControls" style="display:none"></div>
             <div class="chart-wrap"><canvas id="comparisonChart"></canvas></div>
@@ -70,7 +79,17 @@
           <div class="table-card" style="margin-bottom:0">
             <div class="table-card-header comparison-table-header">
               <h3>Tabla comparativa</h3>
-              <div class="comparison-table-tools" id="comparisonTableSortControls" style="display:none"></div>
+              <div class="table-header-actions">
+                <div class="comparison-table-tools" id="comparisonTableSortControls" style="display:none"></div>
+                <details class="export-menu">
+                  <summary class="btn btn-secondary btn-sm">Descargar tabla ▾</summary>
+                  <div class="export-menu-popover export-menu-popover-wide">
+                    <button type="button" onclick="downloadCurrentTable('comparisonTable','png')"><strong>PNG HD</strong><span>Respeta la selección visible</span></button>
+                    <button type="button" onclick="downloadCurrentTable('comparisonTable','pdf')"><strong>PDF</strong><span>Divide columnas sin deformarlas</span></button>
+                    <button type="button" onclick="downloadCurrentTable('comparisonTable','xlsx')"><strong>Excel</strong><span>Tabla visible para reutilizar</span></button>
+                  </div>
+                </details>
+              </div>
             </div>
             <div style="overflow-x:auto">
               <table class="data-table" id="comparisonTable"></table>
@@ -273,6 +292,13 @@
             <div class="chart-card-actions">
               <span class="badge badge-blue" id="yearsCount">0 años</span>
               <button class="btn btn-secondary btn-sm" type="button" id="individualChartModeToggle" onclick="toggleIndividualChartMode()">Ver histórica</button>
+              <details class="export-menu">
+                <summary class="btn btn-secondary btn-sm">Descargar ▾</summary>
+                <div class="export-menu-popover">
+                  <button type="button" onclick="downloadChartAsset('lineChart','png')"><strong>PNG HD</strong><span>Vista actual, sin pixelado</span></button>
+                  <button type="button" onclick="downloadChartAsset('lineChart','pdf')"><strong>PDF</strong><span>Vista actual en alta calidad</span></button>
+                </div>
+              </details>
             </div>
           </div>
           <div class="comparison-zoom-controls individual-zoom-controls" id="individualZoomControls" style="display:none"></div>
@@ -282,7 +308,16 @@
         <div class="chart-card" id="annualChartCard">
           <div class="chart-card-header">
             <span class="chart-card-title" id="annualChartTitle">Total anual</span>
-            <span class="chart-card-note" id="annualChartNote"></span>
+            <div class="chart-card-actions">
+              <span class="chart-card-note" id="annualChartNote"></span>
+              <details class="export-menu">
+                <summary class="btn btn-secondary btn-sm">Descargar ▾</summary>
+                <div class="export-menu-popover">
+                  <button type="button" onclick="downloadChartAsset('barChart','png')"><strong>PNG HD</strong><span>Años visibles en alta resolución</span></button>
+                  <button type="button" onclick="downloadChartAsset('barChart','pdf')"><strong>PDF</strong><span>Formato listo para compartir</span></button>
+                </div>
+              </details>
+            </div>
           </div>
           <div class="chart-empty" id="barChartEmpty" style="display:none">Seleccioná al menos un año para visualizar el gráfico.</div>
           <div class="chart-wrap" id="barChartWrap"><canvas id="barChart"></canvas></div>
@@ -294,7 +329,23 @@
       <div class="table-card">
         <div class="table-card-header">
           <h3>Estadísticas por año</h3>
-          <span class="badge badge-green" id="statsUnit"></span>
+          <div class="table-header-actions">
+            <span class="badge badge-green" id="statsUnit"></span>
+            <details class="export-menu">
+              <summary class="btn btn-secondary btn-sm">Descargar tabla ▾</summary>
+              <div class="export-menu-popover export-menu-popover-wide">
+                <div class="export-menu-group-label">Años seleccionados</div>
+                <button type="button" onclick="downloadIndividualTable('yearStatsTable','selected','png')"><strong>PNG HD</strong><span>Solo los años activos</span></button>
+                <button type="button" onclick="downloadIndividualTable('yearStatsTable','selected','pdf')"><strong>PDF</strong><span>Solo los años activos</span></button>
+                <button type="button" onclick="downloadIndividualTable('yearStatsTable','selected','xlsx')"><strong>Excel</strong><span>Valores sin recorte</span></button>
+                <div class="export-menu-divider"></div>
+                <div class="export-menu-group-label">Serie completa</div>
+                <button type="button" onclick="downloadIndividualTable('yearStatsTable','all','png')"><strong>PNG HD</strong><span>Todos los años cargados</span></button>
+                <button type="button" onclick="downloadIndividualTable('yearStatsTable','all','pdf')"><strong>PDF</strong><span>Todos los años cargados</span></button>
+                <button type="button" onclick="downloadIndividualTable('yearStatsTable','all','xlsx')"><strong>Excel</strong><span>Todos los valores</span></button>
+              </div>
+            </details>
+          </div>
         </div>
         <div style="overflow-x:auto">
           <table class="data-table" id="yearStatsTable">
@@ -307,6 +358,20 @@
       <div class="table-card">
         <div class="table-card-header">
           <h3>Datos mensuales</h3>
+          <details class="export-menu">
+            <summary class="btn btn-secondary btn-sm">Descargar tabla ▾</summary>
+            <div class="export-menu-popover export-menu-popover-wide">
+              <div class="export-menu-group-label">Años seleccionados</div>
+              <button type="button" onclick="downloadIndividualTable('monthlyTable','selected','png')"><strong>PNG HD</strong><span>Solo columnas seleccionadas</span></button>
+              <button type="button" onclick="downloadIndividualTable('monthlyTable','selected','pdf')"><strong>PDF</strong><span>Sin achicar ni deformar</span></button>
+              <button type="button" onclick="downloadIndividualTable('monthlyTable','selected','xlsx')"><strong>Excel</strong><span>Datos editables</span></button>
+              <div class="export-menu-divider"></div>
+              <div class="export-menu-group-label">Serie completa</div>
+              <button type="button" onclick="downloadIndividualTable('monthlyTable','all','png')"><strong>PNG HD</strong><span>Todos los años cargados</span></button>
+              <button type="button" onclick="downloadIndividualTable('monthlyTable','all','pdf')"><strong>PDF</strong><span>Divide columnas si hace falta</span></button>
+              <button type="button" onclick="downloadIndividualTable('monthlyTable','all','xlsx')"><strong>Excel</strong><span>Todos los datos</span></button>
+            </div>
+          </details>
         </div>
         <div class="table-card-note">* indica dato provisorio y/o observación puntual. Pasá el mouse sobre el valor para ver el detalle.</div>
         <div style="overflow-x:auto">
@@ -324,6 +389,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="js/config.js"></script>
 <script src="js/db.js"></script>
 <script src="js/stats.js"></script>
