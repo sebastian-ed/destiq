@@ -37,11 +37,11 @@ function buildLineDatasets(dataByYear, years) {
       data: dataByYear[yr],
       borderColor: color,
       backgroundColor: color + '22',
-      borderWidth: isDense ? 1.7 : 2.4,
-      pointRadius: isDense ? 1.8 : 2.6,
-      pointHoverRadius: 5,
+      borderWidth: isDense ? 2 : 2.5,
+      pointRadius: isDense ? 3 : 4,
+      pointHoverRadius: 7,
       pointHitRadius: 18,
-      tension: 0.12,
+      tension: 0.35,
       fill: false,
     };
   });
@@ -69,21 +69,21 @@ function renderLineChart(canvasId, dataByYear, indicator, dataMetaByYear = {}) {
           display: showLegend,
           position: 'top',
           labels: {
-            color: '#526785',
+            color: '#94a3b8',
             font: { family: "'DM Sans', sans-serif", size: 12 },
             usePointStyle: true,
             pointStyleWidth: 12,
           }
         },
         tooltip: {
-          backgroundColor: 'rgba(255,255,255,.98)',
-          borderColor: '#d9e2ee',
+          backgroundColor: '#0f172a',
+          borderColor: '#334155',
           borderWidth: 1,
-          titleColor: '#1d2932',
-          bodyColor: '#445a78',
+          titleColor: '#e2e8f0',
+          bodyColor: '#cbd5e1',
           displayColors: true,
           usePointStyle: true,
-          padding: 11,
+          padding: 12,
           caretPadding: 8,
           titleMarginBottom: 8,
           bodySpacing: 6,
@@ -108,18 +108,18 @@ function renderLineChart(canvasId, dataByYear, indicator, dataMetaByYear = {}) {
       },
       scales: {
         x: {
-          grid: { color: '#edf1f6', drawBorder: false },
+          grid: { color: '#1e293b' },
           ticks: {
-            color: '#6a7a94',
+            color: '#64748b',
             font: { family: "'DM Sans', sans-serif", size: 11 },
             autoSkip: true,
             maxTicksLimit: MONTHS.length,
           },
         },
         y: {
-          grid: { color: '#edf1f6', drawBorder: false },
+          grid: { color: '#1e293b' },
           ticks: {
-            color: '#6a7a94',
+            color: '#64748b',
             font: { family: "'DM Sans', sans-serif", size: 11 },
             callback: (v) => formatNumber(v, 0),
           },
@@ -145,11 +145,11 @@ function renderHistoricalLineChart(canvasId, labels, series, indicator, measureL
       data: item.values,
       borderColor: color,
       backgroundColor: color + '22',
-      borderWidth: 2.3,
-      pointRadius: labels.length > 80 ? 1.4 : 2.4,
-      pointHoverRadius: 5,
+      borderWidth: 2.5,
+      pointRadius: labels.length > 80 ? 2.5 : 4,
+      pointHoverRadius: 7,
       pointHitRadius: 18,
-      tension: 0.12,
+      tension: 0.28,
       fill: false,
       spanGaps: true,
     };
@@ -167,21 +167,21 @@ function renderHistoricalLineChart(canvasId, labels, series, indicator, measureL
           display: seriesCount <= 10,
           position: 'top',
           labels: {
-            color: '#526785',
+            color: '#94a3b8',
             font: { family: "'DM Sans', sans-serif", size: 12 },
             usePointStyle: true,
             pointStyleWidth: 12,
           }
         },
         tooltip: {
-          backgroundColor: 'rgba(255,255,255,.98)',
-          borderColor: '#d9e2ee',
+          backgroundColor: '#0f172a',
+          borderColor: '#334155',
           borderWidth: 1,
-          titleColor: '#1d2932',
-          bodyColor: '#445a78',
+          titleColor: '#e2e8f0',
+          bodyColor: '#cbd5e1',
           displayColors: true,
           usePointStyle: true,
-          padding: 11,
+          padding: 12,
           caretPadding: 8,
           titleMarginBottom: 8,
           bodySpacing: 6,
@@ -200,18 +200,18 @@ function renderHistoricalLineChart(canvasId, labels, series, indicator, measureL
       },
       scales: {
         x: {
-          grid: { color: '#edf1f6', drawBorder: false },
+          grid: { color: '#1e293b' },
           ticks: {
-            color: '#6a7a94',
+            color: '#64748b',
             font: { family: "'DM Sans', sans-serif", size: 11 },
             autoSkip: true,
             maxTicksLimit: 12,
           },
         },
         y: {
-          grid: { color: '#edf1f6', drawBorder: false },
+          grid: { color: '#1e293b' },
           ticks: {
-            color: '#6a7a94',
+            color: '#64748b',
             font: { family: "'DM Sans', sans-serif", size: 11 },
             callback: (v) => formatNumber(v, 0),
           },
@@ -243,7 +243,7 @@ function renderBarChart(canvasId, yearlyStats, indicator) {
         data: years.map(yr => yearlyStats[yr]?.annualValue ?? null),
         backgroundColor: years.map((_, i) => YEAR_COLORS[i % YEAR_COLORS.length] + 'cc'),
         borderColor: years.map((_, i) => YEAR_COLORS[i % YEAR_COLORS.length]),
-        borderWidth: 1,
+        borderWidth: 1.5,
         borderRadius: 6,
         maxBarThickness: 28,
       }]
@@ -254,21 +254,21 @@ function renderBarChart(canvasId, yearlyStats, indicator) {
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: 'rgba(255,255,255,.98)',
-          borderColor: '#d9e2ee',
+          backgroundColor: '#0f172a',
+          borderColor: '#334155',
           borderWidth: 1,
-          titleColor: '#1d2932',
-          bodyColor: '#445a78',
+          titleColor: '#e2e8f0',
+          bodyColor: '#94a3b8',
           callbacks: {
             label: (ctx) => ` ${annualMeta.shortLabel}: ${formatNumberFull(ctx.parsed.y)} ${indicator.unit || ''}`,
           }
         }
       },
       scales: {
-        x: { grid: { color: '#edf1f6', drawBorder: false }, ticks: { color: '#6a7a94' } },
+        x: { grid: { color: '#1e293b' }, ticks: { color: '#64748b' } },
         y: {
-          grid: { color: '#edf1f6', drawBorder: false },
-          ticks: { color: '#6a7a94', callback: (v) => formatNumber(v, 0) },
+          grid: { color: '#1e293b' },
+          ticks: { color: '#64748b', callback: (v) => formatNumber(v, 0) },
         }
       }
     }
@@ -292,10 +292,10 @@ function renderComparisonChart(canvasId, comparisonPayload) {
       data: serie.values,
       borderColor: color,
       backgroundColor: color + '22',
-      borderWidth: 2.1,
-      pointRadius: 2.8,
-      pointHoverRadius: 5,
-      tension: 0.12,
+      borderWidth: 2.5,
+      pointRadius: 4,
+      pointHoverRadius: 7,
+      tension: 0.28,
       fill: false,
       spanGaps: true,
     };
@@ -316,18 +316,18 @@ function renderComparisonChart(canvasId, comparisonPayload) {
           display: seriesCount <= 10,
           position: 'top',
           labels: {
-            color: '#526785',
+            color: '#94a3b8',
             font: { family: "'DM Sans', sans-serif", size: 12 },
             usePointStyle: true,
             pointStyleWidth: 12,
           }
         },
         tooltip: {
-          backgroundColor: 'rgba(255,255,255,.98)',
-          borderColor: '#d9e2ee',
+          backgroundColor: '#0f172a',
+          borderColor: '#334155',
           borderWidth: 1,
-          titleColor: '#1d2932',
-          bodyColor: '#445a78',
+          titleColor: '#e2e8f0',
+          bodyColor: '#94a3b8',
           callbacks: {
             label: (ctx) => ` ${ctx.dataset.label}: ${formatNumberFull(ctx.parsed.y)} ${comparisonPayload.unit || ''}`,
             afterLabel: () => comparisonPayload.measureLabel ? ` Medida: ${comparisonPayload.measureLabel}` : '',
@@ -336,18 +336,18 @@ function renderComparisonChart(canvasId, comparisonPayload) {
       },
       scales: {
         x: {
-          grid: { color: '#edf1f6', drawBorder: false },
+          grid: { color: '#1e293b' },
           ticks: {
-            color: '#6a7a94',
+            color: '#64748b',
             font: { family: "'DM Sans', sans-serif", size: 11 },
             autoSkip: true,
             maxTicksLimit: MONTHS.length,
           },
         },
         y: {
-          grid: { color: '#edf1f6', drawBorder: false },
+          grid: { color: '#1e293b' },
           ticks: {
-            color: '#6a7a94',
+            color: '#64748b',
             font: { family: "'DM Sans', sans-serif", size: 11 },
             callback: (v) => formatNumber(v, 0),
           },

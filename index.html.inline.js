@@ -571,21 +571,21 @@ function renderDashboard() {
   const globalAppliedMetric = calculateAppliedMetricForYears(currentIndicator, currentDataByYear, currentYearlyStats, years, currentRelatedSeriesMap, { scope: 'global' });
 
   const selectedKpis = [
-    { label: selectedAppliedMetric.label, value: formatNumber(selectedAppliedMetric.value), rawValue: selectedAppliedMetric.value, sub: selectedAppliedMetric.sub || selectedLabel, accent: '#5F796B' },
+    { label: selectedAppliedMetric.label, value: formatNumber(selectedAppliedMetric.value), rawValue: selectedAppliedMetric.value, sub: selectedAppliedMetric.sub || selectedLabel, accent: '#10B981' },
     { label: 'Promedio mensual', value: formatNumber(selectedStats?.mean), rawValue: selectedStats?.mean, sub: selectedLabel, accent: 'var(--accent)' },
-    { label: 'Mediana mensual', value: formatNumber(selectedStats?.median), rawValue: selectedStats?.median, sub: selectedLabel, accent: '#708888' },
-    { label: 'Máximo mensual', value: formatNumber(selectedStats?.max), rawValue: selectedStats?.max, sub: selectedLabel, accent: '#756B82' },
-    { label: 'Mínimo mensual', value: formatNumber(selectedStats?.min), rawValue: selectedStats?.min, sub: selectedLabel, accent: '#8C6D4F' },
-    { label: 'Desvío estándar', value: formatNumber(selectedStats?.stdDev), rawValue: selectedStats?.stdDev, sub: 'Serie seleccionada', accent: '#A0875E' },
+    { label: 'Mediana mensual', value: formatNumber(selectedStats?.median), rawValue: selectedStats?.median, sub: selectedLabel, accent: '#06B6D4' },
+    { label: 'Máximo mensual', value: formatNumber(selectedStats?.max), rawValue: selectedStats?.max, sub: selectedLabel, accent: '#A855F7' },
+    { label: 'Mínimo mensual', value: formatNumber(selectedStats?.min), rawValue: selectedStats?.min, sub: selectedLabel, accent: '#F97316' },
+    { label: 'Desvío estándar', value: formatNumber(selectedStats?.stdDev), rawValue: selectedStats?.stdDev, sub: 'Serie seleccionada', accent: '#EAB308' },
   ];
 
   const globalKpis = [
-    { label: globalAppliedMetric.label, value: formatNumber(globalAppliedMetric.value), rawValue: globalAppliedMetric.value, sub: globalAppliedMetric.sub || 'Todos los años cargados', accent: '#5F796B' },
+    { label: globalAppliedMetric.label, value: formatNumber(globalAppliedMetric.value), rawValue: globalAppliedMetric.value, sub: globalAppliedMetric.sub || 'Todos los años cargados', accent: '#10B981' },
     { label: 'Promedio mensual global', value: formatNumber(globalStats?.mean), rawValue: globalStats?.mean, sub: 'Todos los años cargados', accent: 'var(--accent)' },
-    { label: 'Mediana global', value: formatNumber(globalStats?.median), rawValue: globalStats?.median, sub: 'Todos los años cargados', accent: '#708888' },
-    { label: 'Máximo histórico', value: formatNumber(globalStats?.max), rawValue: globalStats?.max, sub: 'Toda la serie', accent: '#756B82' },
-    { label: 'Mínimo histórico', value: formatNumber(globalStats?.min), rawValue: globalStats?.min, sub: 'Toda la serie', accent: '#8C6D4F' },
-    { label: 'Años cargados', value: years.length ? String(years.length) : '-', sub: years.length ? `${years[0]}–${years[years.length - 1]}` : 'Sin serie', accent: '#A0875E' },
+    { label: 'Mediana global', value: formatNumber(globalStats?.median), rawValue: globalStats?.median, sub: 'Todos los años cargados', accent: '#06B6D4' },
+    { label: 'Máximo histórico', value: formatNumber(globalStats?.max), rawValue: globalStats?.max, sub: 'Toda la serie', accent: '#A855F7' },
+    { label: 'Mínimo histórico', value: formatNumber(globalStats?.min), rawValue: globalStats?.min, sub: 'Toda la serie', accent: '#F97316' },
+    { label: 'Años cargados', value: years.length ? String(years.length) : '-', sub: years.length ? `${years[0]}–${years[years.length - 1]}` : 'Sin serie', accent: '#EAB308' },
   ];
 
   const renderKpiCard = (k) => {

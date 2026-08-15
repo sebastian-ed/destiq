@@ -201,7 +201,7 @@ function prepareExportChartOptions(sourceOptions, chart) {
     options.plugins.legend.position = 'top';
     options.plugins.legend.labels = {
       ...(options.plugins.legend.labels || {}),
-      color: '#52636d',
+      color: '#cbd5e1',
       padding: 18,
       boxWidth: 16,
       font: { ...(options.plugins.legend.labels?.font || {}), size: 13 },
@@ -212,9 +212,9 @@ function prepareExportChartOptions(sourceOptions, chart) {
   ['x', 'y'].forEach(axis => {
     if (!options.scales[axis]) return;
     options.scales[axis].ticks = options.scales[axis].ticks || {};
-    options.scales[axis].ticks.color = '#6b7881';
+    options.scales[axis].ticks.color = '#94a3b8';
     options.scales[axis].ticks.font = { ...(options.scales[axis].ticks.font || {}), size: 13 };
-    options.scales[axis].grid = { ...(options.scales[axis].grid || {}), color: '#e4e8eb' };
+    options.scales[axis].grid = { ...(options.scales[axis].grid || {}), color: '#253247' };
   });
 
   const labelCount = chart?.data?.labels?.length || 0;
@@ -246,7 +246,7 @@ async function createChartExportCanvas(canvasId) {
       const ctx = instance.ctx;
       ctx.save();
       ctx.globalCompositeOperation = 'destination-over';
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = '#0f172a';
       ctx.fillRect(0, 0, instance.width, instance.height);
       ctx.restore();
     },
@@ -271,27 +271,27 @@ async function createChartExportCanvas(canvasId) {
   finalCanvas.height = chartCanvas.height + headerHeight + footerHeight;
 
   const ctx = finalCanvas.getContext('2d');
-  ctx.fillStyle = '#f3f4f2';
+  ctx.fillStyle = '#0b1120';
   ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
 
-  ctx.fillStyle = '#315f7d';
+  ctx.fillStyle = '#3b82f6';
   ctx.font = '700 28px "DM Sans", Arial, sans-serif';
   ctx.fillText('DESTIQ · DASHBOARD DE TURISMO', sidePadding, 62);
 
-  ctx.fillStyle = '#1d2932';
+  ctx.fillStyle = '#f8fafc';
   ctx.font = '700 54px "DM Sans", Arial, sans-serif';
   drawWrappedCanvasText(ctx, context.title, sidePadding, 135, finalCanvas.width - sidePadding * 2, 62, 2);
 
-  ctx.fillStyle = '#687780';
+  ctx.fillStyle = '#94a3b8';
   ctx.font = '400 26px "DM Sans", Arial, sans-serif';
   drawWrappedCanvasText(ctx, context.subtitle, sidePadding, 245, finalCanvas.width - sidePadding * 2, 34, 2);
 
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = '#0f172a';
   roundRectCanvas(ctx, sidePadding - 18, headerHeight - 14, chartCanvas.width + 36, chartCanvas.height + 28, 24);
   ctx.fill();
   ctx.drawImage(chartCanvas, sidePadding, headerHeight);
 
-  ctx.fillStyle = '#7a858c';
+  ctx.fillStyle = '#64748b';
   ctx.font = '400 22px "DM Sans", Arial, sans-serif';
   ctx.fillText(`Generado el ${new Date().toLocaleDateString('es-AR')} · Imagen en alta resolución`, sidePadding, finalCanvas.height - 35);
 
