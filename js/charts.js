@@ -37,11 +37,11 @@ function buildLineDatasets(dataByYear, years) {
       data: dataByYear[yr],
       borderColor: color,
       backgroundColor: color + '22',
-      borderWidth: isDense ? 1.6 : 2.1,
-      pointRadius: isDense ? 1.8 : 3,
+      borderWidth: isDense ? 1.7 : 2.4,
+      pointRadius: isDense ? 1.8 : 2.6,
       pointHoverRadius: 5,
       pointHitRadius: 18,
-      tension: 0.18,
+      tension: 0.12,
       fill: false,
     };
   });
@@ -69,18 +69,18 @@ function renderLineChart(canvasId, dataByYear, indicator, dataMetaByYear = {}) {
           display: showLegend,
           position: 'top',
           labels: {
-            color: '#52636d',
+            color: '#526785',
             font: { family: "'DM Sans', sans-serif", size: 12 },
             usePointStyle: true,
             pointStyleWidth: 12,
           }
         },
         tooltip: {
-          backgroundColor: '#ffffff',
-          borderColor: '#d4dce0',
+          backgroundColor: 'rgba(255,255,255,.98)',
+          borderColor: '#d9e2ee',
           borderWidth: 1,
           titleColor: '#1d2932',
-          bodyColor: '#4d5d67',
+          bodyColor: '#445a78',
           displayColors: true,
           usePointStyle: true,
           padding: 11,
@@ -108,18 +108,18 @@ function renderLineChart(canvasId, dataByYear, indicator, dataMetaByYear = {}) {
       },
       scales: {
         x: {
-          grid: { color: '#e4e8eb' },
+          grid: { color: '#edf1f6', drawBorder: false },
           ticks: {
-            color: '#6b7881',
+            color: '#6a7a94',
             font: { family: "'DM Sans', sans-serif", size: 11 },
             autoSkip: true,
             maxTicksLimit: MONTHS.length,
           },
         },
         y: {
-          grid: { color: '#e4e8eb' },
+          grid: { color: '#edf1f6', drawBorder: false },
           ticks: {
-            color: '#6b7881',
+            color: '#6a7a94',
             font: { family: "'DM Sans', sans-serif", size: 11 },
             callback: (v) => formatNumber(v, 0),
           },
@@ -145,11 +145,11 @@ function renderHistoricalLineChart(canvasId, labels, series, indicator, measureL
       data: item.values,
       borderColor: color,
       backgroundColor: color + '22',
-      borderWidth: 2.1,
-      pointRadius: labels.length > 80 ? 1.5 : 2.8,
+      borderWidth: 2.3,
+      pointRadius: labels.length > 80 ? 1.4 : 2.4,
       pointHoverRadius: 5,
       pointHitRadius: 18,
-      tension: 0.16,
+      tension: 0.12,
       fill: false,
       spanGaps: true,
     };
@@ -167,18 +167,18 @@ function renderHistoricalLineChart(canvasId, labels, series, indicator, measureL
           display: seriesCount <= 10,
           position: 'top',
           labels: {
-            color: '#52636d',
+            color: '#526785',
             font: { family: "'DM Sans', sans-serif", size: 12 },
             usePointStyle: true,
             pointStyleWidth: 12,
           }
         },
         tooltip: {
-          backgroundColor: '#ffffff',
-          borderColor: '#d4dce0',
+          backgroundColor: 'rgba(255,255,255,.98)',
+          borderColor: '#d9e2ee',
           borderWidth: 1,
           titleColor: '#1d2932',
-          bodyColor: '#4d5d67',
+          bodyColor: '#445a78',
           displayColors: true,
           usePointStyle: true,
           padding: 11,
@@ -200,18 +200,18 @@ function renderHistoricalLineChart(canvasId, labels, series, indicator, measureL
       },
       scales: {
         x: {
-          grid: { color: '#e4e8eb' },
+          grid: { color: '#edf1f6', drawBorder: false },
           ticks: {
-            color: '#6b7881',
+            color: '#6a7a94',
             font: { family: "'DM Sans', sans-serif", size: 11 },
             autoSkip: true,
             maxTicksLimit: 12,
           },
         },
         y: {
-          grid: { color: '#e4e8eb' },
+          grid: { color: '#edf1f6', drawBorder: false },
           ticks: {
-            color: '#6b7881',
+            color: '#6a7a94',
             font: { family: "'DM Sans', sans-serif", size: 11 },
             callback: (v) => formatNumber(v, 0),
           },
@@ -244,7 +244,7 @@ function renderBarChart(canvasId, yearlyStats, indicator) {
         backgroundColor: years.map((_, i) => YEAR_COLORS[i % YEAR_COLORS.length] + 'cc'),
         borderColor: years.map((_, i) => YEAR_COLORS[i % YEAR_COLORS.length]),
         borderWidth: 1,
-        borderRadius: 4,
+        borderRadius: 6,
         maxBarThickness: 28,
       }]
     },
@@ -254,21 +254,21 @@ function renderBarChart(canvasId, yearlyStats, indicator) {
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: '#ffffff',
-          borderColor: '#d4dce0',
+          backgroundColor: 'rgba(255,255,255,.98)',
+          borderColor: '#d9e2ee',
           borderWidth: 1,
           titleColor: '#1d2932',
-          bodyColor: '#52636d',
+          bodyColor: '#445a78',
           callbacks: {
             label: (ctx) => ` ${annualMeta.shortLabel}: ${formatNumberFull(ctx.parsed.y)} ${indicator.unit || ''}`,
           }
         }
       },
       scales: {
-        x: { grid: { color: '#e4e8eb' }, ticks: { color: '#6b7881' } },
+        x: { grid: { color: '#edf1f6', drawBorder: false }, ticks: { color: '#6a7a94' } },
         y: {
-          grid: { color: '#e4e8eb' },
-          ticks: { color: '#6b7881', callback: (v) => formatNumber(v, 0) },
+          grid: { color: '#edf1f6', drawBorder: false },
+          ticks: { color: '#6a7a94', callback: (v) => formatNumber(v, 0) },
         }
       }
     }
@@ -295,7 +295,7 @@ function renderComparisonChart(canvasId, comparisonPayload) {
       borderWidth: 2.1,
       pointRadius: 2.8,
       pointHoverRadius: 5,
-      tension: 0.16,
+      tension: 0.12,
       fill: false,
       spanGaps: true,
     };
@@ -316,18 +316,18 @@ function renderComparisonChart(canvasId, comparisonPayload) {
           display: seriesCount <= 10,
           position: 'top',
           labels: {
-            color: '#52636d',
+            color: '#526785',
             font: { family: "'DM Sans', sans-serif", size: 12 },
             usePointStyle: true,
             pointStyleWidth: 12,
           }
         },
         tooltip: {
-          backgroundColor: '#ffffff',
-          borderColor: '#d4dce0',
+          backgroundColor: 'rgba(255,255,255,.98)',
+          borderColor: '#d9e2ee',
           borderWidth: 1,
           titleColor: '#1d2932',
-          bodyColor: '#52636d',
+          bodyColor: '#445a78',
           callbacks: {
             label: (ctx) => ` ${ctx.dataset.label}: ${formatNumberFull(ctx.parsed.y)} ${comparisonPayload.unit || ''}`,
             afterLabel: () => comparisonPayload.measureLabel ? ` Medida: ${comparisonPayload.measureLabel}` : '',
@@ -336,18 +336,18 @@ function renderComparisonChart(canvasId, comparisonPayload) {
       },
       scales: {
         x: {
-          grid: { color: '#e4e8eb' },
+          grid: { color: '#edf1f6', drawBorder: false },
           ticks: {
-            color: '#6b7881',
+            color: '#6a7a94',
             font: { family: "'DM Sans', sans-serif", size: 11 },
             autoSkip: true,
             maxTicksLimit: MONTHS.length,
           },
         },
         y: {
-          grid: { color: '#e4e8eb' },
+          grid: { color: '#edf1f6', drawBorder: false },
           ticks: {
-            color: '#6b7881',
+            color: '#6a7a94',
             font: { family: "'DM Sans', sans-serif", size: 11 },
             callback: (v) => formatNumber(v, 0),
           },
