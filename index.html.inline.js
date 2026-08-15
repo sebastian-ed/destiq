@@ -571,30 +571,34 @@ function renderDashboard() {
   const globalAppliedMetric = calculateAppliedMetricForYears(currentIndicator, currentDataByYear, currentYearlyStats, years, currentRelatedSeriesMap, { scope: 'global' });
 
   const selectedKpis = [
-    { label: selectedAppliedMetric.label, value: formatNumber(selectedAppliedMetric.value), sub: selectedAppliedMetric.sub || selectedLabel, accent: '#10B981' },
-    { label: 'Promedio mensual', value: formatNumber(selectedStats?.mean), sub: selectedLabel, accent: 'var(--accent)' },
-    { label: 'Mediana mensual', value: formatNumber(selectedStats?.median), sub: selectedLabel, accent: '#06B6D4' },
-    { label: 'Máximo mensual', value: formatNumber(selectedStats?.max), sub: selectedLabel, accent: '#A855F7' },
-    { label: 'Mínimo mensual', value: formatNumber(selectedStats?.min), sub: selectedLabel, accent: '#F97316' },
-    { label: 'Desvío estándar', value: formatNumber(selectedStats?.stdDev), sub: 'Serie seleccionada', accent: '#EAB308' },
+    { label: selectedAppliedMetric.label, value: formatNumber(selectedAppliedMetric.value), rawValue: selectedAppliedMetric.value, sub: selectedAppliedMetric.sub || selectedLabel, accent: '#5F796B' },
+    { label: 'Promedio mensual', value: formatNumber(selectedStats?.mean), rawValue: selectedStats?.mean, sub: selectedLabel, accent: 'var(--accent)' },
+    { label: 'Mediana mensual', value: formatNumber(selectedStats?.median), rawValue: selectedStats?.median, sub: selectedLabel, accent: '#708888' },
+    { label: 'Máximo mensual', value: formatNumber(selectedStats?.max), rawValue: selectedStats?.max, sub: selectedLabel, accent: '#756B82' },
+    { label: 'Mínimo mensual', value: formatNumber(selectedStats?.min), rawValue: selectedStats?.min, sub: selectedLabel, accent: '#8C6D4F' },
+    { label: 'Desvío estándar', value: formatNumber(selectedStats?.stdDev), rawValue: selectedStats?.stdDev, sub: 'Serie seleccionada', accent: '#A0875E' },
   ];
 
   const globalKpis = [
-    { label: globalAppliedMetric.label, value: formatNumber(globalAppliedMetric.value), sub: globalAppliedMetric.sub || 'Todos los años cargados', accent: '#10B981' },
-    { label: 'Promedio mensual global', value: formatNumber(globalStats?.mean), sub: 'Todos los años cargados', accent: 'var(--accent)' },
-    { label: 'Mediana global', value: formatNumber(globalStats?.median), sub: 'Todos los años cargados', accent: '#06B6D4' },
-    { label: 'Máximo histórico', value: formatNumber(globalStats?.max), sub: 'Toda la serie', accent: '#A855F7' },
-    { label: 'Mínimo histórico', value: formatNumber(globalStats?.min), sub: 'Toda la serie', accent: '#F97316' },
-    { label: 'Años cargados', value: years.length ? String(years.length) : '-', sub: years.length ? `${years[0]}–${years[years.length - 1]}` : 'Sin serie', accent: '#EAB308' },
+    { label: globalAppliedMetric.label, value: formatNumber(globalAppliedMetric.value), rawValue: globalAppliedMetric.value, sub: globalAppliedMetric.sub || 'Todos los años cargados', accent: '#5F796B' },
+    { label: 'Promedio mensual global', value: formatNumber(globalStats?.mean), rawValue: globalStats?.mean, sub: 'Todos los años cargados', accent: 'var(--accent)' },
+    { label: 'Mediana global', value: formatNumber(globalStats?.median), rawValue: globalStats?.median, sub: 'Todos los años cargados', accent: '#708888' },
+    { label: 'Máximo histórico', value: formatNumber(globalStats?.max), rawValue: globalStats?.max, sub: 'Toda la serie', accent: '#756B82' },
+    { label: 'Mínimo histórico', value: formatNumber(globalStats?.min), rawValue: globalStats?.min, sub: 'Toda la serie', accent: '#8C6D4F' },
+    { label: 'Años cargados', value: years.length ? String(years.length) : '-', sub: years.length ? `${years[0]}–${years[years.length - 1]}` : 'Sin serie', accent: '#A0875E' },
   ];
 
-  const renderKpiCard = (k) => `
-    <div class="kpi-card" style="--accent-color:${k.accent}">
-      <div class="kpi-label">${k.label}</div>
-      <div class="kpi-value">${k.value}</div>
-      ${k.change !== undefined && k.change !== null ? `<div class="kpi-change ${k.change >= 0 ? 'up' : 'down'}">${k.change >= 0 ? '▲' : '▼'} ${formatPct(k.change)}</div>` : k.sub ? `<div class="kpi-sub">${k.sub}</div>` : ''}
-    </div>
-  `;
+  const renderKpiCard = (k) => {
+    const hasFullValue = k.rawValue !== null && k.rawValue !== undefined && !isNaN(k.rawValue);
+    const fullValueTitle = hasFullValue ? ` title="Valor completo: ${formatNumberFull(k.rawValue)}"` : '';
+    return `
+      <div class="kpi-card" style="--accent-color:${k.accent}">
+        <div class="kpi-label">${k.label}</div>
+        <div class="kpi-value"${fullValueTitle}>${k.value}</div>
+        ${k.change !== undefined && k.change !== null ? `<div class="kpi-change ${k.change >= 0 ? 'up' : 'down'}">${k.change >= 0 ? '▲' : '▼'} ${formatPct(k.change)}</div>` : k.sub ? `<div class="kpi-sub">${k.sub}</div>` : ''}
+      </div>
+    `;
+  };
 
   document.getElementById('kpiGrid').innerHTML = `
     <div class="kpi-grid-section-title kpi-grid-full">
@@ -762,12 +766,12 @@ function getFocusedYearStatsColumnKey(tableKey) {
 function renderYearStatsValueCell(row, key) {
   const s = row.stats || {};
   if (key === 'year') return `<td><strong>${row.year}</strong></td>`;
-  if (key === 'annual') return `<td>${formatNumber(s?.annualValue)}</td>`;
-  if (key === 'mean') return `<td>${formatNumber(s?.mean)}</td>`;
-  if (key === 'median') return `<td>${formatNumber(s?.median)}</td>`;
-  if (key === 'max') return `<td>${formatNumber(s?.max)}</td>`;
-  if (key === 'min') return `<td>${formatNumber(s?.min)}</td>`;
-  if (key === 'stdDev') return `<td>${formatNumber(s?.stdDev)}</td>`;
+  if (key === 'annual') return `<td title="Valor completo: ${formatNumberFull(s?.annualValue)}">${formatNumber(s?.annualValue)}</td>`;
+  if (key === 'mean') return `<td title="Valor completo: ${formatNumberFull(s?.mean)}">${formatNumber(s?.mean)}</td>`;
+  if (key === 'median') return `<td title="Valor completo: ${formatNumberFull(s?.median)}">${formatNumber(s?.median)}</td>`;
+  if (key === 'max') return `<td title="Valor completo: ${formatNumberFull(s?.max)}">${formatNumber(s?.max)}</td>`;
+  if (key === 'min') return `<td title="Valor completo: ${formatNumberFull(s?.min)}">${formatNumber(s?.min)}</td>`;
+  if (key === 'stdDev') return `<td title="Valor completo: ${formatNumberFull(s?.stdDev)}">${formatNumber(s?.stdDev)}</td>`;
   if (key === 'yoy') {
     const yoy = s?.yoyAnnual;
     return `<td class="${yoy !== undefined && yoy !== null ? (yoy >= 0 ? 'positive' : 'negative') : ''}">${yoy !== undefined && yoy !== null ? formatPct(yoy) : '-'}</td>`;

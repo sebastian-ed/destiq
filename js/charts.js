@@ -37,11 +37,11 @@ function buildLineDatasets(dataByYear, years) {
       data: dataByYear[yr],
       borderColor: color,
       backgroundColor: color + '22',
-      borderWidth: isDense ? 2 : 2.5,
-      pointRadius: isDense ? 3 : 4,
-      pointHoverRadius: 7,
+      borderWidth: isDense ? 1.6 : 2.1,
+      pointRadius: isDense ? 1.8 : 3,
+      pointHoverRadius: 5,
       pointHitRadius: 18,
-      tension: 0.35,
+      tension: 0.18,
       fill: false,
     };
   });
@@ -69,21 +69,21 @@ function renderLineChart(canvasId, dataByYear, indicator, dataMetaByYear = {}) {
           display: showLegend,
           position: 'top',
           labels: {
-            color: '#94a3b8',
+            color: '#52636d',
             font: { family: "'DM Sans', sans-serif", size: 12 },
             usePointStyle: true,
             pointStyleWidth: 12,
           }
         },
         tooltip: {
-          backgroundColor: '#0f172a',
-          borderColor: '#334155',
+          backgroundColor: '#ffffff',
+          borderColor: '#d4dce0',
           borderWidth: 1,
-          titleColor: '#e2e8f0',
-          bodyColor: '#cbd5e1',
+          titleColor: '#1d2932',
+          bodyColor: '#4d5d67',
           displayColors: true,
           usePointStyle: true,
-          padding: 12,
+          padding: 11,
           caretPadding: 8,
           titleMarginBottom: 8,
           bodySpacing: 6,
@@ -96,7 +96,7 @@ function renderLineChart(canvasId, dataByYear, indicator, dataMetaByYear = {}) {
               if (!item) return '';
               return `${MONTHS[item.dataIndex]} · ${item.dataset.label}`;
             },
-            label: (ctx) => `${formatNumber(ctx.parsed.y)} ${indicator.unit || ''}`,
+            label: (ctx) => `${formatNumberFull(ctx.parsed.y)} ${indicator.unit || ''}`,
             afterLabel: (ctx) => {
               const year = Number(ctx.dataset.label);
               const meta = dataMetaByYear?.[year]?.[ctx.dataIndex] || null;
@@ -108,18 +108,18 @@ function renderLineChart(canvasId, dataByYear, indicator, dataMetaByYear = {}) {
       },
       scales: {
         x: {
-          grid: { color: '#1e293b' },
+          grid: { color: '#e4e8eb' },
           ticks: {
-            color: '#64748b',
+            color: '#6b7881',
             font: { family: "'DM Sans', sans-serif", size: 11 },
             autoSkip: true,
             maxTicksLimit: MONTHS.length,
           },
         },
         y: {
-          grid: { color: '#1e293b' },
+          grid: { color: '#e4e8eb' },
           ticks: {
-            color: '#64748b',
+            color: '#6b7881',
             font: { family: "'DM Sans', sans-serif", size: 11 },
             callback: (v) => formatNumber(v, 0),
           },
@@ -145,11 +145,11 @@ function renderHistoricalLineChart(canvasId, labels, series, indicator, measureL
       data: item.values,
       borderColor: color,
       backgroundColor: color + '22',
-      borderWidth: 2.5,
-      pointRadius: labels.length > 80 ? 2.5 : 4,
-      pointHoverRadius: 7,
+      borderWidth: 2.1,
+      pointRadius: labels.length > 80 ? 1.5 : 2.8,
+      pointHoverRadius: 5,
       pointHitRadius: 18,
-      tension: 0.28,
+      tension: 0.16,
       fill: false,
       spanGaps: true,
     };
@@ -167,21 +167,21 @@ function renderHistoricalLineChart(canvasId, labels, series, indicator, measureL
           display: seriesCount <= 10,
           position: 'top',
           labels: {
-            color: '#94a3b8',
+            color: '#52636d',
             font: { family: "'DM Sans', sans-serif", size: 12 },
             usePointStyle: true,
             pointStyleWidth: 12,
           }
         },
         tooltip: {
-          backgroundColor: '#0f172a',
-          borderColor: '#334155',
+          backgroundColor: '#ffffff',
+          borderColor: '#d4dce0',
           borderWidth: 1,
-          titleColor: '#e2e8f0',
-          bodyColor: '#cbd5e1',
+          titleColor: '#1d2932',
+          bodyColor: '#4d5d67',
           displayColors: true,
           usePointStyle: true,
-          padding: 12,
+          padding: 11,
           caretPadding: 8,
           titleMarginBottom: 8,
           bodySpacing: 6,
@@ -193,25 +193,25 @@ function renderHistoricalLineChart(canvasId, labels, series, indicator, measureL
               const item = items?.[0];
               return item ? labels[item.dataIndex] : '';
             },
-            label: (ctx) => ` ${ctx.dataset.label}: ${formatNumber(ctx.parsed.y)} ${indicator?.unit || ''}`,
+            label: (ctx) => ` ${ctx.dataset.label}: ${formatNumberFull(ctx.parsed.y)} ${indicator?.unit || ''}`,
             afterLabel: () => measureLabel ? ` Medida: ${measureLabel}` : '',
           }
         },
       },
       scales: {
         x: {
-          grid: { color: '#1e293b' },
+          grid: { color: '#e4e8eb' },
           ticks: {
-            color: '#64748b',
+            color: '#6b7881',
             font: { family: "'DM Sans', sans-serif", size: 11 },
             autoSkip: true,
             maxTicksLimit: 12,
           },
         },
         y: {
-          grid: { color: '#1e293b' },
+          grid: { color: '#e4e8eb' },
           ticks: {
-            color: '#64748b',
+            color: '#6b7881',
             font: { family: "'DM Sans', sans-serif", size: 11 },
             callback: (v) => formatNumber(v, 0),
           },
@@ -243,8 +243,8 @@ function renderBarChart(canvasId, yearlyStats, indicator) {
         data: years.map(yr => yearlyStats[yr]?.annualValue ?? null),
         backgroundColor: years.map((_, i) => YEAR_COLORS[i % YEAR_COLORS.length] + 'cc'),
         borderColor: years.map((_, i) => YEAR_COLORS[i % YEAR_COLORS.length]),
-        borderWidth: 1.5,
-        borderRadius: 6,
+        borderWidth: 1,
+        borderRadius: 4,
         maxBarThickness: 28,
       }]
     },
@@ -254,21 +254,21 @@ function renderBarChart(canvasId, yearlyStats, indicator) {
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: '#0f172a',
-          borderColor: '#334155',
+          backgroundColor: '#ffffff',
+          borderColor: '#d4dce0',
           borderWidth: 1,
-          titleColor: '#e2e8f0',
-          bodyColor: '#94a3b8',
+          titleColor: '#1d2932',
+          bodyColor: '#52636d',
           callbacks: {
-            label: (ctx) => ` ${annualMeta.shortLabel}: ${formatNumber(ctx.parsed.y)} ${indicator.unit || ''}`,
+            label: (ctx) => ` ${annualMeta.shortLabel}: ${formatNumberFull(ctx.parsed.y)} ${indicator.unit || ''}`,
           }
         }
       },
       scales: {
-        x: { grid: { color: '#1e293b' }, ticks: { color: '#64748b' } },
+        x: { grid: { color: '#e4e8eb' }, ticks: { color: '#6b7881' } },
         y: {
-          grid: { color: '#1e293b' },
-          ticks: { color: '#64748b', callback: (v) => formatNumber(v, 0) },
+          grid: { color: '#e4e8eb' },
+          ticks: { color: '#6b7881', callback: (v) => formatNumber(v, 0) },
         }
       }
     }
@@ -292,10 +292,10 @@ function renderComparisonChart(canvasId, comparisonPayload) {
       data: serie.values,
       borderColor: color,
       backgroundColor: color + '22',
-      borderWidth: 2.5,
-      pointRadius: 4,
-      pointHoverRadius: 7,
-      tension: 0.28,
+      borderWidth: 2.1,
+      pointRadius: 2.8,
+      pointHoverRadius: 5,
+      tension: 0.16,
       fill: false,
       spanGaps: true,
     };
@@ -316,38 +316,38 @@ function renderComparisonChart(canvasId, comparisonPayload) {
           display: seriesCount <= 10,
           position: 'top',
           labels: {
-            color: '#94a3b8',
+            color: '#52636d',
             font: { family: "'DM Sans', sans-serif", size: 12 },
             usePointStyle: true,
             pointStyleWidth: 12,
           }
         },
         tooltip: {
-          backgroundColor: '#0f172a',
-          borderColor: '#334155',
+          backgroundColor: '#ffffff',
+          borderColor: '#d4dce0',
           borderWidth: 1,
-          titleColor: '#e2e8f0',
-          bodyColor: '#94a3b8',
+          titleColor: '#1d2932',
+          bodyColor: '#52636d',
           callbacks: {
-            label: (ctx) => ` ${ctx.dataset.label}: ${formatNumber(ctx.parsed.y)} ${comparisonPayload.unit || ''}`,
+            label: (ctx) => ` ${ctx.dataset.label}: ${formatNumberFull(ctx.parsed.y)} ${comparisonPayload.unit || ''}`,
             afterLabel: () => comparisonPayload.measureLabel ? ` Medida: ${comparisonPayload.measureLabel}` : '',
           }
         },
       },
       scales: {
         x: {
-          grid: { color: '#1e293b' },
+          grid: { color: '#e4e8eb' },
           ticks: {
-            color: '#64748b',
+            color: '#6b7881',
             font: { family: "'DM Sans', sans-serif", size: 11 },
             autoSkip: true,
             maxTicksLimit: MONTHS.length,
           },
         },
         y: {
-          grid: { color: '#1e293b' },
+          grid: { color: '#e4e8eb' },
           ticks: {
-            color: '#64748b',
+            color: '#6b7881',
             font: { family: "'DM Sans', sans-serif", size: 11 },
             callback: (v) => formatNumber(v, 0),
           },

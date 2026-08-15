@@ -757,18 +757,18 @@ function renderDashboard() {
   }
 
   const kpis = [
-    { label: 'Promedio mensual', value: formatNumber(gs?.mean), sub: 'Histórico global', accent: 'var(--accent)' },
-    { label: `${annualMeta.shortLabel} ${lastYear || '—'}`, value: formatNumber(lastStats?.annualValue), change: lastStats?.yoyAnnual, accent: '#10B981' },
-    { label: 'Máximo mensual', value: formatNumber(gs?.max), sub: 'Histórico', accent: '#A855F7' },
-    { label: 'Mínimo mensual', value: formatNumber(gs?.min), sub: 'Histórico', accent: '#F97316' },
-    { label: 'Mediana mensual', value: formatNumber(gs?.median), sub: 'Histórico global', accent: '#06B6D4' },
-    { label: 'Desvío estándar', value: formatNumber(gs?.stdDev), sub: 'Variabilidad', accent: '#EAB308' },
+    { label: 'Promedio mensual', value: formatNumber(gs?.mean), rawValue: gs?.mean, sub: 'Histórico global', accent: 'var(--accent)' },
+    { label: `${annualMeta.shortLabel} ${lastYear || '—'}`, value: formatNumber(lastStats?.annualValue), rawValue: lastStats?.annualValue, change: lastStats?.yoyAnnual, accent: '#5F796B' },
+    { label: 'Máximo mensual', value: formatNumber(gs?.max), rawValue: gs?.max, sub: 'Histórico', accent: '#756B82' },
+    { label: 'Mínimo mensual', value: formatNumber(gs?.min), rawValue: gs?.min, sub: 'Histórico', accent: '#8C6D4F' },
+    { label: 'Mediana mensual', value: formatNumber(gs?.median), rawValue: gs?.median, sub: 'Histórico global', accent: '#708888' },
+    { label: 'Desvío estándar', value: formatNumber(gs?.stdDev), rawValue: gs?.stdDev, sub: 'Variabilidad', accent: '#A0875E' },
   ];
 
   document.getElementById('kpiGrid').innerHTML = kpis.map(k => `
     <div class="kpi-card" style="--accent-color:${k.accent}">
       <div class="kpi-label">${k.label}</div>
-      <div class="kpi-value">${k.value}</div>
+      <div class="kpi-value"${k.rawValue !== null && k.rawValue !== undefined && !isNaN(k.rawValue) ? ` title="Valor completo: ${formatNumberFull(k.rawValue)}"` : ''}>${k.value}</div>
       ${k.change !== undefined && k.change !== null ? `<div class="kpi-change ${k.change >= 0 ? 'up' : 'down'}">${k.change >= 0 ? '▲' : '▼'} ${formatPct(k.change)}</div>` : k.sub ? `<div class="kpi-sub">${k.sub}</div>` : ''}
     </div>
   `).join('');
@@ -790,12 +790,12 @@ function renderDashboard() {
     const yoy = s?.yoyAnnual;
     return `<tr>
       <td><strong>${yr}</strong></td>
-      <td>${formatNumber(s?.annualValue)}</td>
-      <td>${formatNumber(s?.mean)}</td>
-      <td>${formatNumber(s?.median)}</td>
-      <td>${formatNumber(s?.min)}</td>
-      <td>${formatNumber(s?.max)}</td>
-      <td>${formatNumber(s?.stdDev)}</td>
+      <td title="Valor completo: ${formatNumberFull(s?.annualValue)}">${formatNumber(s?.annualValue)}</td>
+      <td title="Valor completo: ${formatNumberFull(s?.mean)}">${formatNumber(s?.mean)}</td>
+      <td title="Valor completo: ${formatNumberFull(s?.median)}">${formatNumber(s?.median)}</td>
+      <td title="Valor completo: ${formatNumberFull(s?.min)}">${formatNumber(s?.min)}</td>
+      <td title="Valor completo: ${formatNumberFull(s?.max)}">${formatNumber(s?.max)}</td>
+      <td title="Valor completo: ${formatNumberFull(s?.stdDev)}">${formatNumber(s?.stdDev)}</td>
       <td class="${yoy !== undefined && yoy !== null ? (yoy >= 0 ? 'positive' : 'negative') : ''}">${yoy !== undefined && yoy !== null ? formatPct(yoy) : '-'}</td>
     </tr>`;
   }).join('');

@@ -82,7 +82,16 @@
           <div class="chart-card" style="margin-bottom:16px">
             <div class="chart-card-header">
               <span class="chart-card-title" id="compareChartTitle">Comparación anual</span>
-              <span class="chart-card-note" id="compareChartNote"></span>
+              <div class="chart-card-actions">
+                <span class="chart-card-note" id="compareChartNote"></span>
+                <details class="export-menu">
+                  <summary class="btn btn-secondary btn-sm">Descargar ▾</summary>
+                  <div class="export-menu-popover">
+                    <button type="button" onclick="downloadChartAsset('comparisonChart','png')"><strong>PNG HD</strong><span>Ideal para Word y PowerPoint</span></button>
+                    <button type="button" onclick="downloadChartAsset('comparisonChart','pdf')"><strong>PDF</strong><span>Alta calidad para compartir</span></button>
+                  </div>
+                </details>
+              </div>
             </div>
             <div class="comparison-zoom-controls" id="comparisonZoomControls" style="display:none"></div>
             <div class="chart-wrap"><canvas id="comparisonChart"></canvas></div>
@@ -90,7 +99,17 @@
           <div class="table-card" style="margin-bottom:0">
             <div class="table-card-header comparison-table-header">
               <h3>Tabla comparativa</h3>
-              <div class="comparison-table-tools" id="comparisonTableSortControls" style="display:none"></div>
+              <div class="table-header-actions">
+                <div class="comparison-table-tools" id="comparisonTableSortControls" style="display:none"></div>
+                <details class="export-menu">
+                  <summary class="btn btn-secondary btn-sm">Descargar tabla ▾</summary>
+                  <div class="export-menu-popover export-menu-popover-wide">
+                    <button type="button" onclick="downloadCurrentTable('comparisonTable','png')"><strong>PNG HD</strong><span>Respeta la selección visible</span></button>
+                    <button type="button" onclick="downloadCurrentTable('comparisonTable','pdf')"><strong>PDF</strong><span>Divide columnas sin deformarlas</span></button>
+                    <button type="button" onclick="downloadCurrentTable('comparisonTable','xlsx')"><strong>Excel</strong><span>Tabla visible para reutilizar</span></button>
+                  </div>
+                </details>
+              </div>
             </div>
             <div style="overflow-x:auto">
               <table class="data-table" id="comparisonTable"></table>
@@ -190,14 +209,32 @@
         <div class="chart-card">
           <div class="chart-card-header">
             <span class="chart-card-title">Evolución mensual por año</span>
-            <span class="badge badge-blue" id="yearsCount">0 años</span>
+            <div class="chart-card-actions">
+              <span class="badge badge-blue" id="yearsCount">0 años</span>
+              <details class="export-menu">
+                <summary class="btn btn-secondary btn-sm">Descargar ▾</summary>
+                <div class="export-menu-popover">
+                  <button type="button" onclick="downloadChartAsset('lineChart','png')"><strong>PNG HD</strong><span>Serie completa, sin pixelado</span></button>
+                  <button type="button" onclick="downloadChartAsset('lineChart','pdf')"><strong>PDF</strong><span>Alta calidad para compartir</span></button>
+                </div>
+              </details>
+            </div>
           </div>
           <div class="chart-wrap"><canvas id="lineChart"></canvas></div>
         </div>
         <div class="chart-card" id="annualChartCard">
           <div class="chart-card-header">
             <span class="chart-card-title" id="annualChartTitle">Total anual</span>
-            <span class="chart-card-note" id="annualChartNote"></span>
+            <div class="chart-card-actions">
+              <span class="chart-card-note" id="annualChartNote"></span>
+              <details class="export-menu">
+                <summary class="btn btn-secondary btn-sm">Descargar ▾</summary>
+                <div class="export-menu-popover">
+                  <button type="button" onclick="downloadChartAsset('barChart','png')"><strong>PNG HD</strong><span>Serie completa en alta resolución</span></button>
+                  <button type="button" onclick="downloadChartAsset('barChart','pdf')"><strong>PDF</strong><span>Formato listo para compartir</span></button>
+                </div>
+              </details>
+            </div>
           </div>
           <div class="chart-wrap"><canvas id="barChart"></canvas></div>
         </div>
@@ -206,10 +243,20 @@
       <div class="table-card">
         <div class="table-card-header">
           <h3>Estadísticas por año</h3>
-          <span class="badge badge-green" id="statsUnit"></span>
+          <div class="table-header-actions">
+            <span class="badge badge-green" id="statsUnit"></span>
+            <details class="export-menu">
+              <summary class="btn btn-secondary btn-sm">Descargar tabla ▾</summary>
+              <div class="export-menu-popover export-menu-popover-wide">
+                <button type="button" onclick="downloadIndividualTable('yearStatsTable','all','png')"><strong>PNG HD</strong><span>Todos los años cargados</span></button>
+                <button type="button" onclick="downloadIndividualTable('yearStatsTable','all','pdf')"><strong>PDF</strong><span>Sin deformar columnas</span></button>
+                <button type="button" onclick="downloadIndividualTable('yearStatsTable','all','xlsx')"><strong>Excel</strong><span>Valores completos y editables</span></button>
+              </div>
+            </details>
+          </div>
         </div>
         <div style="overflow-x:auto">
-          <table class="data-table">
+          <table class="data-table" id="yearStatsTable">
             <thead>
               <tr>
                 <th>Año</th>
@@ -230,6 +277,14 @@
       <div class="table-card">
         <div class="table-card-header">
           <h3>Datos mensuales</h3>
+          <details class="export-menu">
+            <summary class="btn btn-secondary btn-sm">Descargar tabla ▾</summary>
+            <div class="export-menu-popover export-menu-popover-wide">
+              <button type="button" onclick="downloadIndividualTable('monthlyTable','all','png')"><strong>PNG HD</strong><span>Todos los años cargados</span></button>
+              <button type="button" onclick="downloadIndividualTable('monthlyTable','all','pdf')"><strong>PDF</strong><span>Divide columnas si hace falta</span></button>
+              <button type="button" onclick="downloadIndividualTable('monthlyTable','all','xlsx')"><strong>Excel</strong><span>Todos los datos editables</span></button>
+            </div>
+          </details>
         </div>
         <div class="table-card-note">* indica dato provisorio y/o observación puntual. Pasá el mouse sobre el valor para ver el detalle.</div>
         <div style="overflow-x:auto">
@@ -458,6 +513,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="../js/config.js"></script>
 <script src="../js/db.js"></script>
 <script src="../js/stats.js"></script>
@@ -1224,18 +1280,18 @@ function renderDashboard() {
   }
 
   const kpis = [
-    { label: 'Promedio mensual', value: formatNumber(gs?.mean), sub: 'Histórico global', accent: 'var(--accent)' },
-    { label: `${annualMeta.shortLabel} ${lastYear || '—'}`, value: formatNumber(lastStats?.annualValue), change: lastStats?.yoyAnnual, accent: '#10B981' },
-    { label: 'Máximo mensual', value: formatNumber(gs?.max), sub: 'Histórico', accent: '#A855F7' },
-    { label: 'Mínimo mensual', value: formatNumber(gs?.min), sub: 'Histórico', accent: '#F97316' },
-    { label: 'Mediana mensual', value: formatNumber(gs?.median), sub: 'Histórico global', accent: '#06B6D4' },
-    { label: 'Desvío estándar', value: formatNumber(gs?.stdDev), sub: 'Variabilidad', accent: '#EAB308' },
+    { label: 'Promedio mensual', value: formatNumber(gs?.mean), rawValue: gs?.mean, sub: 'Histórico global', accent: 'var(--accent)' },
+    { label: `${annualMeta.shortLabel} ${lastYear || '—'}`, value: formatNumber(lastStats?.annualValue), rawValue: lastStats?.annualValue, change: lastStats?.yoyAnnual, accent: '#5F796B' },
+    { label: 'Máximo mensual', value: formatNumber(gs?.max), rawValue: gs?.max, sub: 'Histórico', accent: '#756B82' },
+    { label: 'Mínimo mensual', value: formatNumber(gs?.min), rawValue: gs?.min, sub: 'Histórico', accent: '#8C6D4F' },
+    { label: 'Mediana mensual', value: formatNumber(gs?.median), rawValue: gs?.median, sub: 'Histórico global', accent: '#708888' },
+    { label: 'Desvío estándar', value: formatNumber(gs?.stdDev), rawValue: gs?.stdDev, sub: 'Variabilidad', accent: '#A0875E' },
   ];
 
   document.getElementById('kpiGrid').innerHTML = kpis.map(k => `
     <div class="kpi-card" style="--accent-color:${k.accent}">
       <div class="kpi-label">${k.label}</div>
-      <div class="kpi-value">${k.value}</div>
+      <div class="kpi-value"${k.rawValue !== null && k.rawValue !== undefined && !isNaN(k.rawValue) ? ` title="Valor completo: ${formatNumberFull(k.rawValue)}"` : ''}>${k.value}</div>
       ${k.change !== undefined && k.change !== null ? `<div class="kpi-change ${k.change >= 0 ? 'up' : 'down'}">${k.change >= 0 ? '▲' : '▼'} ${formatPct(k.change)}</div>` : k.sub ? `<div class="kpi-sub">${k.sub}</div>` : ''}
     </div>
   `).join('');
@@ -1257,12 +1313,12 @@ function renderDashboard() {
     const yoy = s?.yoyAnnual;
     return `<tr>
       <td><strong>${yr}</strong></td>
-      <td>${formatNumber(s?.annualValue)}</td>
-      <td>${formatNumber(s?.mean)}</td>
-      <td>${formatNumber(s?.median)}</td>
-      <td>${formatNumber(s?.min)}</td>
-      <td>${formatNumber(s?.max)}</td>
-      <td>${formatNumber(s?.stdDev)}</td>
+      <td title="Valor completo: ${formatNumberFull(s?.annualValue)}">${formatNumber(s?.annualValue)}</td>
+      <td title="Valor completo: ${formatNumberFull(s?.mean)}">${formatNumber(s?.mean)}</td>
+      <td title="Valor completo: ${formatNumberFull(s?.median)}">${formatNumber(s?.median)}</td>
+      <td title="Valor completo: ${formatNumberFull(s?.min)}">${formatNumber(s?.min)}</td>
+      <td title="Valor completo: ${formatNumberFull(s?.max)}">${formatNumber(s?.max)}</td>
+      <td title="Valor completo: ${formatNumberFull(s?.stdDev)}">${formatNumber(s?.stdDev)}</td>
       <td class="${yoy !== undefined && yoy !== null ? (yoy >= 0 ? 'positive' : 'negative') : ''}">${yoy !== undefined && yoy !== null ? formatPct(yoy) : '-'}</td>
     </tr>`;
   }).join('');

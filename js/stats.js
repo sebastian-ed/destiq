@@ -248,6 +248,16 @@ function formatNumber(n, decimals = 2) {
   return n.toLocaleString('es-AR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
+function formatNumberFull(n, decimals = 2) {
+  if (n === null || n === undefined || isNaN(n)) return '-';
+  const value = Number(n);
+  const isWhole = Number.isInteger(value);
+  return value.toLocaleString('es-AR', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: isWhole ? 0 : decimals,
+  });
+}
+
 function formatPct(n) {
   if (n === null || n === undefined || isNaN(n)) return '-';
   return (n >= 0 ? '+' : '') + Number(n).toFixed(1) + '%';
