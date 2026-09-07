@@ -1,0 +1,11 @@
+# Copiar este bloque dentro de ~/.hermes/config.yaml
+# Reemplazar C:/RUTA/AL/PROYECTO por la ruta real donde descomprimiste DestIQ.
+
+mcp_servers:
+  destiq:
+    command: "python"
+    args:
+      - "C:/RUTA/AL/PROYECTO/agent/mcp_server.py"
+    enabled: true
+    timeout: 120
+    connect_timeout: 60

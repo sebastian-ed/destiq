@@ -1,0 +1,115 @@
+openapi: 3.1.0
+info:
+  title: DestIQ Read API
+  version: 1.0.0
+  description: >-
+    API de solo lectura sobre los datos públicos de DestIQ. Es la API PostgREST
+    generada por Supabase. La publishable key está expuesta intencionalmente en
+    la aplicación web y el acceso efectivo queda limitado por Row Level Security.
+servers:
+  - url: https://ozjgsfojqvtcnrtfhorr.supabase.co/rest/v1
+security:
+  - SupabasePublishableKey: []
+components:
+  securitySchemes:
+    SupabasePublishableKey:
+      type: apiKey
+      in: header
+      name: apikey
+  schemas:
+    Destination:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        sort_order: { type: integer }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    Indicator:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: [string, 'null'] }
+        unit: { type: string }
+        destination_id: { type: [string, 'null'], format: uuid }
+        annual_calc_mode:
+          type: string
+          enum: [sum, average, last_value, max, min, ratio_of_sums, none]
+        annual_chart_visible: { type: boolean }
+        metric_key: { type: [string, 'null'] }
+        formula_numerator_key: { type: [string, 'null'] }
+        formula_denominator_key: { type: [string, 'null'] }
+        formula_multiplier: { type: [number, string, 'null'] }
+        group_title: { type: string }
+        sort_order: { type: integer }
+        methodology_note: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    DataPoint:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        indicator_id: { type: string, format: uuid }
+        year: { type: integer }
+        month: { type: integer, minimum: 1, maximum: 12 }
+        value: { type: [number, string, 'null'] }
+        is_provisional: { type: boolean }
+        observation: { type: string }
+        created_at: { type: string, format: date-time }
+paths:
+  /destinations:
+    get:
+      operationId: listDestinations
+      summary: Listar destinos
+      parameters:
+        - { name: select, in: query, schema: { type: string }, example: "*" }
+        - { name: id, in: query, schema: { type: string }, description: "Filtro PostgREST, ej. eq.<uuid>" }
+        - { name: slug, in: query, schema: { type: string }, description: "Filtro PostgREST, ej. eq.bariloche" }
+        - { name: order, in: query, schema: { type: string }, example: "sort_order.asc,name.asc" }
+        - { name: limit, in: query, schema: { type: integer } }
+        - { name: offset, in: query, schema: { type: integer } }
+      responses:
+        '200':
+          description: Lista de destinos
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Destination' } }
+  /indicators:
+    get:
+      operationId: listIndicators
+      summary: Listar o filtrar indicadores
+      parameters:
+        - { name: select, in: query, schema: { type: string }, example: "*" }
+        - { name: id, in: query, schema: { type: string }, description: "Filtro PostgREST" }
+        - { name: destination_id, in: query, schema: { type: string }, description: "Filtro PostgREST, ej. eq.<uuid>" }
+        - { name: metric_key, in: query, schema: { type: string }, description: "Filtro PostgREST, ej. eq.viajeros" }
+        - { name: name, in: query, schema: { type: string }, description: "Filtro PostgREST, ej. ilike.*viajeros*" }
+        - { name: order, in: query, schema: { type: string }, example: "destination_id.asc,sort_order.asc,name.asc" }
+        - { name: limit, in: query, schema: { type: integer } }
+        - { name: offset, in: query, schema: { type: integer } }
+      responses:
+        '200':
+          description: Lista de indicadores
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Indicator' } }
+  /data_points:
+    get:
+      operationId: listDataPoints
+      summary: Obtener datos mensuales
+      parameters:
+        - { name: select, in: query, schema: { type: string }, example: "*" }
+        - { name: indicator_id, in: query, schema: { type: string }, description: "Filtro PostgREST, ej. eq.<uuid>" }
+        - { name: year, in: query, schema: { type: string }, description: "Filtro PostgREST, ej. eq.2025, gte.2020 o lte.2025" }
+        - { name: month, in: query, schema: { type: string }, description: "Filtro PostgREST, ej. eq.1" }
+        - { name: order, in: query, schema: { type: string }, example: "year.asc,month.asc" }
+        - { name: limit, in: query, schema: { type: integer } }
+        - { name: offset, in: query, schema: { type: integer } }
+      responses:
+        '200':
+          description: Lista de valores mensuales
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/DataPoint' } }

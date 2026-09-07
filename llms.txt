@@ -1,0 +1,79 @@
+# DestIQ — acceso para agentes e IA
+
+DestIQ es un dashboard de indicadores de turismo. La interfaz pública está en:
+https://sebastian-ed.github.io/destiq/
+
+Los datos reales se almacenan en Supabase y se pueden leer como JSON mediante la API REST pública de solo lectura.
+
+## Fuente de datos
+
+Supabase URL:
+https://ozjgsfojqvtcnrtfhorr.supabase.co
+
+Publishable API key (clave pública, sujeta a RLS):
+sb_publishable_Laor_XKXrXTUJqlXnBK8fg_PCmx6-AH
+
+REST base:
+https://ozjgsfojqvtcnrtfhorr.supabase.co/rest/v1
+
+## Tablas
+
+1. destinations
+   - id: UUID
+   - name: nombre del destino
+   - slug: identificador legible
+   - sort_order: orden visual
+
+2. indicators
+   - id: UUID
+   - destination_id: UUID de destinations
+   - name, description, unit
+   - metric_key: clave comparable entre destinos
+   - group_title: agrupador visual
+   - methodology_note: aclaración metodológica
+   - annual_calc_mode: sum | average | last_value | max | min | ratio_of_sums | none
+   - formula_numerator_key, formula_denominator_key, formula_multiplier: usados cuando annual_calc_mode=ratio_of_sums
+
+3. data_points
+   - indicator_id: UUID de indicators
+   - year: año
+   - month: 1..12
+   - value: valor mensual
+   - is_provisional: dato provisorio
+   - observation: observación puntual
+
+## Lectura directa en navegador/agente web
+
+Supabase admite la publishable key como parámetro `apikey`.
+
+Destinos:
+https://ozjgsfojqvtcnrtfhorr.supabase.co/rest/v1/destinations?select=*&order=sort_order.asc,name.asc&apikey=sb_publishable_Laor_XKXrXTUJqlXnBK8fg_PCmx6-AH
+
+Indicadores:
+https://ozjgsfojqvtcnrtfhorr.supabase.co/rest/v1/indicators?select=*&order=destination_id.asc,sort_order.asc,name.asc&apikey=sb_publishable_Laor_XKXrXTUJqlXnBK8fg_PCmx6-AH
+
+Datos mensuales:
+https://ozjgsfojqvtcnrtfhorr.supabase.co/rest/v1/data_points?select=*&order=indicator_id.asc,year.asc,month.asc&apikey=sb_publishable_Laor_XKXrXTUJqlXnBK8fg_PCmx6-AH
+
+Para evitar respuestas demasiado grandes, filtrar antes de pedir data_points. Ejemplo:
+/rest/v1/data_points?select=*&indicator_id=eq.<UUID>&year=gte.2024&order=year.asc,month.asc
+
+## Reglas de interpretación anual
+
+- sum: sumar los meses con dato.
+- average: promedio simple de los meses con dato.
+- last_value: último mes con dato del año.
+- max: máximo mensual del año.
+- min: mínimo mensual del año.
+- ratio_of_sums: sumar por separado la serie identificada por formula_numerator_key y la serie identificada por formula_denominator_key, para el mismo destino y año, y calcular (sum(numerador) / sum(denominador)) * formula_multiplier.
+- none: no calcular valor anual.
+
+No sumar porcentajes/tasas cuando el indicador usa ratio_of_sums.
+
+## Recursos incluidos en este repositorio
+
+- openapi.yaml: especificación OpenAPI de lectura.
+- agent/README.md: instalación y uso con Hermes/MCP.
+- agent/destiq_cli.py: cliente CLI sin dependencias externas.
+- agent/mcp_server.py: servidor MCP local para Hermes y otros clientes MCP.
+- agent/hermes-config-example.yaml: bloque de configuración listo para copiar.

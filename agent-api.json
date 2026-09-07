@@ -1,0 +1,29 @@
+{
+  "name": "DestIQ",
+  "description": "Indicadores de turismo de Argentina, organizados por destino e indicador.",
+  "site": "https://sebastian-ed.github.io/destiq/",
+  "api_type": "Supabase PostgREST",
+  "read_only_public_access": true,
+  "supabase_url": "https://ozjgsfojqvtcnrtfhorr.supabase.co",
+  "rest_base": "https://ozjgsfojqvtcnrtfhorr.supabase.co/rest/v1",
+  "publishable_key": "sb_publishable_Laor_XKXrXTUJqlXnBK8fg_PCmx6-AH",
+  "authentication": {
+    "preferred": "HTTP header apikey",
+    "header": "apikey",
+    "browser_fallback": "query parameter apikey"
+  },
+  "tables": {
+    "destinations": "/destinations",
+    "indicators": "/indicators",
+    "data_points": "/data_points"
+  },
+  "machine_docs": {
+    "llms": "https://sebastian-ed.github.io/destiq/llms.txt",
+    "openapi": "https://sebastian-ed.github.io/destiq/openapi.yaml"
+  },
+  "mcp": {
+    "type": "local stdio",
+    "source": "agent/mcp_server.py",
+    "instructions": "agent/README.md"
+  }
+}
