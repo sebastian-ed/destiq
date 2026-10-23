@@ -2418,3 +2418,18 @@ input, select, textarea { font-family: inherit; }
 .indicator-latest-value span,.indicator-latest-value small {display:block;font-size:11px;color:var(--text-subtle)}
 .indicator-change-row {display:flex;gap:12px;flex-wrap:wrap;padding:8px 0;font-size:11px}
 @media(max-width:680px){.snapshot-grid{grid-template-columns:1fr 1fr}.indicator-latest-value{min-width:0}}
+
+/* v6: navegación y jerarquía; mantiene colores y gráficos de la versión original */
+.monitor-primary-nav{position:sticky;top:0;z-index:45;display:flex;align-items:center;gap:5px;overflow-x:auto;padding:11px 12px;margin:-20px -22px 20px;background:var(--bg-primary,#0c1220);border-bottom:1px solid var(--border,#233349);scrollbar-width:thin}
+.monitor-primary-nav button,.monitor-primary-nav a{border:1px solid transparent;border-radius:9px;padding:9px 10px;background:transparent;color:var(--text-secondary,#b8c5d8);font:inherit;font-size:12px;font-weight:700;white-space:nowrap;cursor:pointer;text-decoration:none}
+.monitor-primary-nav button:hover,.monitor-primary-nav a:hover{border-color:var(--accent,#3b82f6);color:var(--text-primary,#fff);background:var(--bg-card,#162338)}
+.monitor-primary-nav .monitor-admin-nav{margin-left:auto;border:1px solid var(--border,#233349)}
+.full-monitor-intro{margin:0 0 23px;padding:24px 26px;border:1px solid var(--border,#233349);border-radius:16px;background:var(--bg-card,#162338)}
+.full-monitor-intro h2{font-size:25px;line-height:1.2;margin:7px 0 8px;color:var(--text-primary,#fff)}
+.full-monitor-intro p,.full-monitor-heading p{color:var(--text-muted,#a6b4c7);margin:0;font-size:13px;line-height:1.6}
+.full-monitor-kicker{font-size:10px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:var(--accent,#4d9fff)}
+.full-monitor-modules{display:grid;gap:23px;margin-top:28px}
+.full-monitor-heading{padding:22px 3px 0;border-top:1px solid var(--border,#233349)}
+.full-monitor-heading h2{font-size:20px;margin:6px 0;color:var(--text-primary,#fff)}
+.monitor-section,.comparison-card,.ranking-card,.insights-card{scroll-margin-top:84px}
+@media(max-width:720px){.monitor-primary-nav{margin:-12px -12px 16px}.full-monitor-intro{padding:17px}.full-monitor-intro h2{font-size:21px}.monitor-primary-nav button{font-size:11px}}

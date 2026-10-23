@@ -38,162 +38,18 @@
   </aside>
 
   <main class="main-content" id="dashboardRoot">
+    <nav class="monitor-primary-nav" aria-label="Secciones del observatorio">
+      <button type="button" onclick="goToMonitorSection('summary')">01 · Resumen</button>
+      <button type="button" onclick="goToMonitorSection('periods')">02 · Períodos</button>
+      <button type="button" onclick="goToMonitorSection('evolution')">03 · Evolución</button>
+      <button type="button" onclick="goToMonitorSection('destinations')">04 · Destinos</button>
+      <button type="button" onclick="goToMonitorSection('rankings')">05 · Rankings</button>
+      <button type="button" onclick="goToMonitorSection('insights')">06 · Hallazgos</button>
+      <button type="button" onclick="goToMonitorSection('data')">07 · Datos</button>
+      <a href="admin.html" class="monitor-admin-nav">Administrar ↗</a>
+    </nav>
+    <header class="full-monitor-intro"><div class="full-monitor-kicker">DESTIQ · OBSERVATORIO DE TURISMO</div><h2>Turismo, en perspectiva.</h2><p>Explorá los últimos datos, contrastá períodos, seguí tendencias y compará destinos sin perder el detalle estadístico.</p></header>
 
-    <div class="comparison-card monitor-section" id="comparisonSection">
-      <div class="comparison-card-header">
-        <h3>Comparar destinos</h3>
-        <span class="badge badge-blue" id="compareSummaryBadge">Sin comparación</span>
-      </div>
-      <div class="comparison-card-body">
-        <div class="comparison-controls">
-          <div class="form-group compare-metric-group" style="margin:0">
-            <label class="form-label">Buscar indicador comparable</label>
-            <input id="compareMetricSearch" class="form-control" placeholder="Ej: viajeros, plazas ocupadas, TOH" oninput="handleComparisonMetricSearch()"/>
-            <label class="form-label compare-select-label">Indicador comparable</label>
-            <select id="compareMetricKey" class="form-control" onchange="handleComparisonMetricChange()"></select>
-          </div>
-          <div class="form-group" style="margin:0">
-            <label class="form-label">Destinos a comparar</label>
-            <div id="compareDestinationList" class="compare-destination-list"></div>
-          </div>
-          <button class="btn btn-primary" onclick="runComparison()">Comparar</button>
-        </div>
-        <p class="comparison-note">No compara “sumas porque sí”. Respeta la configuración anual de cada indicador: suma, promedio, último valor o ratio recalculado.</p>
-        <div id="compareEmpty" class="empty-compare">Elegí un indicador comparable y por lo menos dos destinos.</div>
-        <div id="compareResults" style="display:none">
-          <div class="chart-card" style="margin-bottom:16px">
-            <div class="chart-card-header">
-              <span class="chart-card-title" id="compareChartTitle">Comparación anual</span>
-              <div class="chart-card-actions">
-                <span class="chart-card-note" id="compareChartNote"></span>
-                <details class="export-menu">
-                  <summary class="btn btn-secondary btn-sm">Descargar ▾</summary>
-                  <div class="export-menu-popover">
-                    <button type="button" onclick="downloadChartAsset('comparisonChart','png')"><strong>PNG HD</strong><span>Ideal para Word y PowerPoint</span></button>
-                    <button type="button" onclick="downloadChartAsset('comparisonChart','pdf')"><strong>PDF</strong><span>Alta calidad para compartir</span></button>
-                  </div>
-                </details>
-              </div>
-            </div>
-            <div class="comparison-zoom-controls" id="comparisonZoomControls" style="display:none"></div>
-            <div class="chart-wrap"><canvas id="comparisonChart"></canvas></div>
-          </div>
-          <div class="table-card" style="margin-bottom:0">
-            <div class="table-card-header comparison-table-header">
-              <h3>Tabla comparativa</h3>
-              <div class="table-header-actions">
-                <div class="comparison-table-tools" id="comparisonTableSortControls" style="display:none"></div>
-                <details class="export-menu">
-                  <summary class="btn btn-secondary btn-sm">Descargar tabla ▾</summary>
-                  <div class="export-menu-popover export-menu-popover-wide">
-                    <button type="button" onclick="downloadCurrentTable('comparisonTable','png')"><strong>PNG HD</strong><span>Respeta la selección visible</span></button>
-                    <button type="button" onclick="downloadCurrentTable('comparisonTable','pdf')"><strong>PDF</strong><span>Divide columnas sin deformarlas</span></button>
-                    <button type="button" onclick="downloadCurrentTable('comparisonTable','xlsx')"><strong>Excel</strong><span>Tabla visible para reutilizar</span></button>
-                  </div>
-                </details>
-              </div>
-            </div>
-            <div style="overflow-x:auto">
-              <table class="data-table" id="comparisonTable"></table>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="ranking-card monitor-section" id="territorialRankingCard">
-      <div class="ranking-card-header">
-        <div>
-          <h3>Ranking territorial por indicador</h3>
-          <p>Armá rankings por año o por serie completa usando todos los destinos disponibles para el indicador seleccionado.</p>
-        </div>
-        <span class="badge badge-blue" id="rankingSummaryBadge">Sin ranking</span>
-      </div>
-      <div class="ranking-card-body">
-        <div class="ranking-controls">
-          <div class="form-group ranking-search-field" style="margin:0">
-            <label class="form-label">Buscar indicador</label>
-            <input id="rankingMetricSearch" class="form-control" placeholder="Ej: viajeros, plazas ocupadas, TOH" oninput="handleRankingMetricSearch()"/>
-          </div>
-          <div class="form-group" style="margin:0">
-            <label class="form-label">Indicador para ranking</label>
-            <select id="rankingMetricKey" class="form-control" onchange="handleRankingMetricChange()"></select>
-          </div>
-          <div class="form-group" style="margin:0">
-            <label class="form-label">Período</label>
-            <select id="rankingYear" class="form-control" onchange="handleRankingControlChange()"></select>
-          </div>
-          <div class="form-group" style="margin:0">
-            <label class="form-label">Orden</label>
-            <select id="rankingDirection" class="form-control" onchange="handleRankingControlChange()">
-              <option value="desc">Mayor a menor</option>
-              <option value="asc">Menor a mayor</option>
-            </select>
-          </div>
-          <button class="btn btn-primary" onclick="runTerritorialRanking()">Generar ranking</button>
-        </div>
-        <label class="checkbox-inline ranking-exclude-row">
-          <input id="rankingExcludeAggregates" type="checkbox" checked onchange="handleRankingControlChange()"/>
-          Excluir agregados territoriales como Total País y Regiones
-        </label>
-        <div id="rankingEmpty" class="empty-compare">Elegí un indicador y generá el ranking territorial.</div>
-        <div id="rankingResults" class="ranking-results" style="display:none"></div>
-      </div>
-    </div>
-
-
-    <div class="insights-card monitor-section" id="automaticInsightsCard">
-      <div class="insights-card-header">
-        <div>
-          <h3>Hallazgos automáticos por destino</h3>
-          <p>Generá un informe técnico con evolución, variaciones, volúmenes, promedios y señales relevantes por destino e indicador.</p>
-        </div>
-        <span class="badge badge-blue" id="insightsSummaryBadge">Sin informe</span>
-      </div>
-      <div class="insights-card-body">
-        <div class="insights-controls row g-3 align-items-end">
-          <div class="form-group col-12 col-md-6 col-xl-2" style="margin:0">
-            <label class="form-label">Destino</label>
-            <select id="insightsDestinationId" class="form-control" onchange="handleInsightsDestinationChange()"></select>
-          </div>
-          <div class="form-group col-12 col-md-6 col-xl-2" style="margin:0">
-            <label class="form-label">Alcance</label>
-            <select id="insightsScope" class="form-control" onchange="handleInsightsScopeChange()">
-              <option value="all">Todos los indicadores con datos</option>
-              <option value="single">Indicador individual</option>
-            </select>
-          </div>
-          <div class="form-group col-12 col-lg-6 col-xl-2" style="margin:0">
-            <label class="form-label">Indicador</label>
-            <select id="insightsIndicatorId" class="form-control" onchange="handleInsightsControlChange()"></select>
-          </div>
-          <div class="form-group col-12 col-md-6 col-xl-2" style="margin:0">
-            <label class="form-label">Período</label>
-            <select id="insightsPeriodMode" class="form-control" onchange="handleInsightsPeriodModeChange()">
-              <option value="__all__">Serie completa</option>
-              <option value="__last__">Último año cargado</option>
-              <option value="__last2__" selected>Últimos 2 años</option>
-              <option value="__last5__">Últimos 5 años</option>
-              <option value="__custom__">Rango personalizado</option>
-            </select>
-          </div>
-          <div class="form-group insights-range-field col-6 col-md-3 col-xl-1" style="margin:0">
-            <label class="form-label">Desde</label>
-            <select id="insightsStartYear" class="form-control" onchange="handleInsightsControlChange()"></select>
-          </div>
-          <div class="form-group insights-range-field col-6 col-md-3 col-xl-1" style="margin:0">
-            <label class="form-label">Hasta</label>
-            <select id="insightsEndYear" class="form-control" onchange="handleInsightsControlChange()"></select>
-          </div>
-          <div class="col-12 col-md-6 col-xl-2 insights-action-col">
-            <button class="btn btn-primary w-100" onclick="runAutomaticInsights()">Generar informe</button>
-          </div>
-        </div>
-        <p class="insights-note">El informe se calcula con los datos actuales de Supabase y respeta la regla anual configurada en cada indicador.</p>
-        <div id="insightsEmpty" class="empty-compare">Elegí destino, período y generá los hallazgos automáticos.</div>
-        <div id="insightsResults" class="insights-results" style="display:none"></div>
-      </div>
-    </div>
 
     <div id="mainEmpty" class="empty-state">
       <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
@@ -413,6 +269,7 @@
 
       <div class="kpi-grid" id="kpiGrid"></div>
 
+      <div id="dataSection" class="monitor-section"></div>
       <div class="table-card">
         <div class="table-card-header">
           <h3>Estadísticas por año</h3>
@@ -466,6 +323,165 @@
         </div>
       </div>
       </section>
+    </div>
+    <div class="full-monitor-modules" id="advancedAnalysisModules">
+      <div class="full-monitor-heading"><span class="full-monitor-kicker">ANÁLISIS TERRITORIAL</span><h2>Compará, ordená y descubrí</h2><p>Estos módulos originales siguen disponibles con todas sus herramientas y exportaciones.</p></div>
+    <div class="comparison-card monitor-section" id="comparisonSection">
+      <div class="comparison-card-header">
+        <h3>Comparar destinos</h3>
+        <span class="badge badge-blue" id="compareSummaryBadge">Sin comparación</span>
+      </div>
+      <div class="comparison-card-body">
+        <div class="comparison-controls">
+          <div class="form-group compare-metric-group" style="margin:0">
+            <label class="form-label">Buscar indicador comparable</label>
+            <input id="compareMetricSearch" class="form-control" placeholder="Ej: viajeros, plazas ocupadas, TOH" oninput="handleComparisonMetricSearch()"/>
+            <label class="form-label compare-select-label">Indicador comparable</label>
+            <select id="compareMetricKey" class="form-control" onchange="handleComparisonMetricChange()"></select>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Destinos a comparar</label>
+            <div id="compareDestinationList" class="compare-destination-list"></div>
+          </div>
+          <button class="btn btn-primary" onclick="runComparison()">Comparar</button>
+        </div>
+        <p class="comparison-note">No compara “sumas porque sí”. Respeta la configuración anual de cada indicador: suma, promedio, último valor o ratio recalculado.</p>
+        <div id="compareEmpty" class="empty-compare">Elegí un indicador comparable y por lo menos dos destinos.</div>
+        <div id="compareResults" style="display:none">
+          <div class="chart-card" style="margin-bottom:16px">
+            <div class="chart-card-header">
+              <span class="chart-card-title" id="compareChartTitle">Comparación anual</span>
+              <div class="chart-card-actions">
+                <span class="chart-card-note" id="compareChartNote"></span>
+                <details class="export-menu">
+                  <summary class="btn btn-secondary btn-sm">Descargar ▾</summary>
+                  <div class="export-menu-popover">
+                    <button type="button" onclick="downloadChartAsset('comparisonChart','png')"><strong>PNG HD</strong><span>Ideal para Word y PowerPoint</span></button>
+                    <button type="button" onclick="downloadChartAsset('comparisonChart','pdf')"><strong>PDF</strong><span>Alta calidad para compartir</span></button>
+                  </div>
+                </details>
+              </div>
+            </div>
+            <div class="comparison-zoom-controls" id="comparisonZoomControls" style="display:none"></div>
+            <div class="chart-wrap"><canvas id="comparisonChart"></canvas></div>
+          </div>
+          <div class="table-card" style="margin-bottom:0">
+            <div class="table-card-header comparison-table-header">
+              <h3>Tabla comparativa</h3>
+              <div class="table-header-actions">
+                <div class="comparison-table-tools" id="comparisonTableSortControls" style="display:none"></div>
+                <details class="export-menu">
+                  <summary class="btn btn-secondary btn-sm">Descargar tabla ▾</summary>
+                  <div class="export-menu-popover export-menu-popover-wide">
+                    <button type="button" onclick="downloadCurrentTable('comparisonTable','png')"><strong>PNG HD</strong><span>Respeta la selección visible</span></button>
+                    <button type="button" onclick="downloadCurrentTable('comparisonTable','pdf')"><strong>PDF</strong><span>Divide columnas sin deformarlas</span></button>
+                    <button type="button" onclick="downloadCurrentTable('comparisonTable','xlsx')"><strong>Excel</strong><span>Tabla visible para reutilizar</span></button>
+                  </div>
+                </details>
+              </div>
+            </div>
+            <div style="overflow-x:auto">
+              <table class="data-table" id="comparisonTable"></table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ranking-card monitor-section" id="territorialRankingCard">
+      <div class="ranking-card-header">
+        <div>
+          <h3>Ranking territorial por indicador</h3>
+          <p>Armá rankings por año o por serie completa usando todos los destinos disponibles para el indicador seleccionado.</p>
+        </div>
+        <span class="badge badge-blue" id="rankingSummaryBadge">Sin ranking</span>
+      </div>
+      <div class="ranking-card-body">
+        <div class="ranking-controls">
+          <div class="form-group ranking-search-field" style="margin:0">
+            <label class="form-label">Buscar indicador</label>
+            <input id="rankingMetricSearch" class="form-control" placeholder="Ej: viajeros, plazas ocupadas, TOH" oninput="handleRankingMetricSearch()"/>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Indicador para ranking</label>
+            <select id="rankingMetricKey" class="form-control" onchange="handleRankingMetricChange()"></select>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Período</label>
+            <select id="rankingYear" class="form-control" onchange="handleRankingControlChange()"></select>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Orden</label>
+            <select id="rankingDirection" class="form-control" onchange="handleRankingControlChange()">
+              <option value="desc">Mayor a menor</option>
+              <option value="asc">Menor a mayor</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="runTerritorialRanking()">Generar ranking</button>
+        </div>
+        <label class="checkbox-inline ranking-exclude-row">
+          <input id="rankingExcludeAggregates" type="checkbox" checked onchange="handleRankingControlChange()"/>
+          Excluir agregados territoriales como Total País y Regiones
+        </label>
+        <div id="rankingEmpty" class="empty-compare">Elegí un indicador y generá el ranking territorial.</div>
+        <div id="rankingResults" class="ranking-results" style="display:none"></div>
+      </div>
+    </div>
+
+
+    <div class="insights-card monitor-section" id="automaticInsightsCard">
+      <div class="insights-card-header">
+        <div>
+          <h3>Hallazgos automáticos por destino</h3>
+          <p>Generá un informe técnico con evolución, variaciones, volúmenes, promedios y señales relevantes por destino e indicador.</p>
+        </div>
+        <span class="badge badge-blue" id="insightsSummaryBadge">Sin informe</span>
+      </div>
+      <div class="insights-card-body">
+        <div class="insights-controls row g-3 align-items-end">
+          <div class="form-group col-12 col-md-6 col-xl-2" style="margin:0">
+            <label class="form-label">Destino</label>
+            <select id="insightsDestinationId" class="form-control" onchange="handleInsightsDestinationChange()"></select>
+          </div>
+          <div class="form-group col-12 col-md-6 col-xl-2" style="margin:0">
+            <label class="form-label">Alcance</label>
+            <select id="insightsScope" class="form-control" onchange="handleInsightsScopeChange()">
+              <option value="all">Todos los indicadores con datos</option>
+              <option value="single">Indicador individual</option>
+            </select>
+          </div>
+          <div class="form-group col-12 col-lg-6 col-xl-2" style="margin:0">
+            <label class="form-label">Indicador</label>
+            <select id="insightsIndicatorId" class="form-control" onchange="handleInsightsControlChange()"></select>
+          </div>
+          <div class="form-group col-12 col-md-6 col-xl-2" style="margin:0">
+            <label class="form-label">Período</label>
+            <select id="insightsPeriodMode" class="form-control" onchange="handleInsightsPeriodModeChange()">
+              <option value="__all__">Serie completa</option>
+              <option value="__last__">Último año cargado</option>
+              <option value="__last2__" selected>Últimos 2 años</option>
+              <option value="__last5__">Últimos 5 años</option>
+              <option value="__custom__">Rango personalizado</option>
+            </select>
+          </div>
+          <div class="form-group insights-range-field col-6 col-md-3 col-xl-1" style="margin:0">
+            <label class="form-label">Desde</label>
+            <select id="insightsStartYear" class="form-control" onchange="handleInsightsControlChange()"></select>
+          </div>
+          <div class="form-group insights-range-field col-6 col-md-3 col-xl-1" style="margin:0">
+            <label class="form-label">Hasta</label>
+            <select id="insightsEndYear" class="form-control" onchange="handleInsightsControlChange()"></select>
+          </div>
+          <div class="col-12 col-md-6 col-xl-2 insights-action-col">
+            <button class="btn btn-primary w-100" onclick="runAutomaticInsights()">Generar informe</button>
+          </div>
+        </div>
+        <p class="insights-note">El informe se calcula con los datos actuales de Supabase y respeta la regla anual configurada en cada indicador.</p>
+        <div id="insightsEmpty" class="empty-compare">Elegí destino, período y generá los hallazgos automáticos.</div>
+        <div id="insightsResults" class="insights-results" style="display:none"></div>
+      </div>
+    </div>
+
     </div>
   </main>
 </div>
