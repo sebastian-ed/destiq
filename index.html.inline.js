@@ -3101,3 +3101,362 @@ function toast(msg, type = 'success') {
   container.appendChild(el);
   setTimeout(() => el.remove(), 3500);
 }
+
+// ── DESTIQ V3 · CAPA DE LECTURA EJECUTIVA ──────────────────
+let destinationSnapshots = {};
+let periodComparisonMode = 'monthly';
+
+function getMonthlyPeriods(dataByYear = currentDataByYear) {
+  const periods = [];
+  Object.keys(dataByYear || {}).map(Number).sort((a,b) => a-b).forEach(year => {
+    (dataByYear[year] || []).forEach((value, monthIndex) => {
+      if (value === null || value === undefined || Number.isNaN(Number(value))) return;
+      periods.push({
+        key: `${year}-${String(monthIndex + 1).padStart(2, '0')}`,
+        year,
+        month: monthIndex + 1,
+        value: Number(value),
+        label: `${MONTHS[monthIndex]} ${year}`,
+      });
+    });
+  });
+  return periods;
+}
+
+function getPeriodByCalendar(periods, year, month) {
+  return (periods || []).find(item => item.year === year && item.month === month) || null;
+}
+
+function getMonthlySnapshot(dataByYear) {
+  const periods = getMonthlyPeriods(dataByYear);
+  if (!periods.length) return null;
+  const latest = periods[periods.length - 1];
+  const previous = getPeriodByCalendar(periods, latest.month === 1 ? latest.year - 1 : latest.year, latest.month === 1 ? 12 : latest.month - 1)
+    || periods[periods.length - 2]
+    || null;
+  const yearAgo = getPeriodByCalendar(periods, latest.year - 1, latest.month);
+  const momAbs = previous ? latest.value - previous.value : null;
+  const momPct = previous && previous.value !== 0 ? (momAbs / Math.abs(previous.value)) * 100 : null;
+  const yoyAbs = yearAgo ? latest.value - yearAgo.value : null;
+  const yoyPct = yearAgo && yearAgo.value !== 0 ? (yoyAbs / Math.abs(yearAgo.value)) * 100 : null;
+  return { periods, latest, previous, yearAgo, momAbs, momPct, yoyAbs, yoyPct };
+}
+
+function signedNumber(value, unit = '') {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return '—';
+  const numeric = Number(value);
+  const sign = numeric > 0 ? '+' : '';
+  return `${sign}${formatNumber(numeric)}${unit ? ` ${unit}` : ''}`;
+}
+
+function signedPct(value) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return '—';
+  const numeric = Number(value);
+  const sign = numeric > 0 ? '+' : '';
+  return `${sign}${formatNumber(numeric, 1)}%`;
+}
+
+function changeClass(value) {
+  if (value === null || value === undefined || Number.isNaN(Number(value)) || Number(value) === 0) return 'neutral';
+  return Number(value) > 0 ? 'positive' : 'negative';
+}
+
+async function buildDestinationSnapshot(destinationId) {
+  const scoped = getIndicatorsForDestination(destinationId);
+  const ids = scoped.map(ind => ind.id);
+  destinationSnapshots = {};
+  if (!ids.length) return;
+  try {
+    const points = await fetchDataPointsForIndicators(ids);
+    const dataByIndicator = buildDataByIndicator(points);
+    scoped.forEach(indicator => {
+      const dataByYear = buildDataByYear(dataByIndicator[indicator.id] || []);
+      const snapshot = getMonthlySnapshot(dataByYear);
+      if (snapshot) destinationSnapshots[indicator.id] = snapshot;
+    });
+  } catch (error) {
+    destinationSnapshots = {};
+  }
+}
+
+function renderDestinationSnapshot() {
+  const grid = document.getElementById('overviewSnapshotGrid');
+  const empty = document.getElementById('overviewSnapshotEmpty');
+  if (!grid || !empty || !currentDestination) return;
+  const items = getIndicatorsForDestination(currentDestination.id)
+    .filter(ind => destinationSnapshots[ind.id])
+    .slice(0, 6);
+  if (!items.length) {
+    grid.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  grid.innerHTML = items.map(ind => {
+    const snap = destinationSnapshots[ind.id];
+    return `
+      <button class="snapshot-card" type="button" onclick="selectIndicator('${escapeJs(ind.id)}')">
+        <span class="snapshot-card-label">${escapeHtml(ind.name)}</span>
+        <strong>${formatNumber(snap.latest.value)} ${escapeHtml(ind.unit || '')}</strong>
+        <span class="snapshot-period">${escapeHtml(snap.latest.label)}</span>
+        <span class="snapshot-change ${changeClass(snap.yoyPct)}">Interanual ${signedPct(snap.yoyPct)}</span>
+      </button>`;
+  }).join('');
+}
+
+const _destiqRenderGroupedOverviewCards = renderGroupedOverviewCards;
+renderGroupedOverviewCards = function(items, destinationId) {
+  const groups = groupIndicatorsByTitle(items);
+  return groups.map(group => {
+    const collapsed = isGroupCollapsed('center', destinationId, group.title);
+    const encodedTitle = encodeURIComponent(group.title);
+    return `
+      <section class="grouped-indicator-section ${collapsed ? 'is-collapsed' : ''}">
+        <button type="button" class="grouped-indicator-section-header group-toggle-btn" onclick="toggleGroupVisibility('center', '${escapeJs(destinationId)}', '${encodedTitle}')">
+          <div class="grouped-indicator-section-title">
+            <span class="group-toggle-icon">▾</span>
+            <h4>${escapeHtml(group.title)}</h4>
+          </div>
+          <span class="badge badge-blue">${group.indicators.length} indicador${group.indicators.length !== 1 ? 'es' : ''}</span>
+        </button>
+        <div class="grouped-indicator-section-body">
+          <div class="destination-cards">
+            ${group.indicators.map(ind => {
+              const annualMeta = getAnnualCalcMeta(getIndicatorCalcMode(ind));
+              const snap = destinationSnapshots[ind.id] || null;
+              return `
+                <article class="indicator-overview-card ${snap ? 'has-snapshot' : ''}">
+                  <div class="indicator-card-top">
+                    <div>
+                      <h4>${escapeHtml(ind.name)}</h4>
+                      <p>${escapeHtml(ind.description || 'Sin descripción cargada.')}</p>
+                    </div>
+                    ${snap ? `
+                      <div class="indicator-latest-value">
+                        <strong>${formatNumber(snap.latest.value)}</strong>
+                        <span>${escapeHtml(ind.unit || '')}</span>
+                        <small>${escapeHtml(snap.latest.label)}</small>
+                      </div>` : ''}
+                  </div>
+                  ${snap ? `
+                    <div class="indicator-change-row">
+                      <span class="${changeClass(snap.momPct)}">Mensual ${signedPct(snap.momPct)}</span>
+                      <span class="${changeClass(snap.yoyPct)}">Interanual ${signedPct(snap.yoyPct)}</span>
+                    </div>` : ''}
+                  <div class="indicator-overview-meta">
+                    <span>${escapeHtml(ind.unit || 'sin unidad')}</span>
+                    <span>${annualMeta.shortLabel}</span>
+                  </div>
+                  ${getMethodologyNote(ind) ? `<div class="indicator-overview-meta"><span class="indicator-note-badge">Nota metodológica</span></div>` : ''}
+                  <div class="card-actions">
+                    <button class="btn btn-primary btn-sm" onclick="selectIndicator('${escapeJs(ind.id)}')">Analizar indicador →</button>
+                  </div>
+                </article>`;
+            }).join('')}
+          </div>
+        </div>
+      </section>`;
+  }).join('');
+};
+
+const _destiqSelectDestination = selectDestination;
+selectDestination = async function(destinationId) {
+  await buildDestinationSnapshot(destinationId);
+  await _destiqSelectDestination(destinationId);
+  renderDestinationSnapshot();
+};
+
+const _destiqShowCurrentDestinationOverview = showCurrentDestinationOverview;
+showCurrentDestinationOverview = function(options = {}) {
+  _destiqShowCurrentDestinationOverview(options);
+  renderDestinationSnapshot();
+};
+
+const _destiqRenderSidebar = renderSidebar;
+renderSidebar = function() {
+  _destiqRenderSidebar();
+  const search = String(document.getElementById('destinationSearch')?.value || '').trim().toLowerCase();
+  if (!search) return;
+  const list = document.getElementById('destinationList');
+  if (!list) return;
+  const allDestinations = getRenderableDestinations().filter(dest => getDestinationDisplayName(dest).toLowerCase().includes(search));
+  list.innerHTML = allDestinations.length ? allDestinations.map(dest => {
+    const count = getIndicatorsForDestination(dest.id).length;
+    return `
+      <button class="destination-item ${currentDestination?.id === dest.id ? 'active' : ''}" onclick="selectDestination('${escapeJs(dest.id)}')">
+        <span class="destination-main"><span class="destination-name">${escapeHtml(getDestinationDisplayName(dest))}</span><span class="destination-meta">${count} indicador${count !== 1 ? 'es' : ''}</span></span>
+        <span class="destination-count">${count}</span>
+      </button>`;
+  }).join('') : '<div class="sidebar-hint">No hay destinos que coincidan con la búsqueda.</div>';
+};
+
+function renderExecutiveSummary() {
+  if (!currentIndicator) return;
+  const snap = getMonthlySnapshot(currentDataByYear);
+  const unit = currentIndicator.unit || '';
+  const annualMeta = getAnnualCalcMeta(getIndicatorCalcMode(currentIndicator));
+  const annualYears = Object.keys(currentYearlyStats || {}).filter(k => k !== '__meta').map(Number).sort((a,b) => a-b);
+  const latestAnnualYear = annualYears[annualYears.length - 1];
+  const latestAnnual = latestAnnualYear ? currentYearlyStats[latestAnnualYear]?.annualValue : null;
+  const prevAnnualYear = annualYears.length > 1 ? annualYears[annualYears.length - 2] : null;
+  const prevAnnual = prevAnnualYear ? currentYearlyStats[prevAnnualYear]?.annualValue : null;
+  const annualPct = latestAnnual !== null && prevAnnual !== null && prevAnnual !== 0
+    ? ((Number(latestAnnual) - Number(prevAnnual)) / Math.abs(Number(prevAnnual))) * 100
+    : null;
+
+  if (!snap) {
+    document.getElementById('executiveHeadline').textContent = 'Todavía no hay datos para construir una lectura ejecutiva.';
+    document.getElementById('executiveNarrative').textContent = 'Cargá al menos un dato mensual para activar las comparaciones.';
+    ['quickLatestValue','quickMomValue','quickYoyValue','quickAnnualValue'].forEach(id => document.getElementById(id).textContent = '—');
+    return;
+  }
+
+  document.getElementById('latestPeriodChip').textContent = `Último dato · ${snap.latest.label}`;
+  document.getElementById('quickLatestValue').textContent = `${formatNumber(snap.latest.value)}${unit ? ` ${unit}` : ''}`;
+  document.getElementById('quickLatestLabel').textContent = snap.latest.label;
+  document.getElementById('quickMomValue').textContent = signedPct(snap.momPct);
+  document.getElementById('quickMomSub').textContent = snap.previous ? `${signedNumber(snap.momAbs, unit)} vs. ${snap.previous.label}` : 'Sin período previo comparable';
+  document.getElementById('quickYoyValue').textContent = signedPct(snap.yoyPct);
+  document.getElementById('quickYoySub').textContent = snap.yearAgo ? `${signedNumber(snap.yoyAbs, unit)} vs. ${snap.yearAgo.label}` : 'Sin dato interanual comparable';
+  document.getElementById('quickAnnualLabel').textContent = `${annualMeta.shortLabel} ${latestAnnualYear || ''}`.trim();
+  document.getElementById('quickAnnualValue').textContent = latestAnnual === null || latestAnnual === undefined ? '—' : `${formatNumber(latestAnnual)}${unit ? ` ${unit}` : ''}`;
+  document.getElementById('quickAnnualSub').textContent = annualPct === null ? annualMeta.description : `${signedPct(annualPct)} vs. ${prevAnnualYear}`;
+
+  ['quickMomCard','quickYoyCard','quickAnnualCard'].forEach(id => document.getElementById(id)?.classList.remove('positive','negative','neutral'));
+  document.getElementById('quickMomCard')?.classList.add(changeClass(snap.momPct));
+  document.getElementById('quickYoyCard')?.classList.add(changeClass(snap.yoyPct));
+  document.getElementById('quickAnnualCard')?.classList.add(changeClass(annualPct));
+
+  const direction = snap.yoyPct === null ? 'sin comparación interanual disponible' : snap.yoyPct > 0 ? `por encima de un año atrás (${signedPct(snap.yoyPct)})` : snap.yoyPct < 0 ? `por debajo de un año atrás (${signedPct(snap.yoyPct)})` : 'en el mismo nivel que un año atrás';
+  document.getElementById('executiveHeadline').textContent = `${currentIndicator.name}: ${formatNumber(snap.latest.value)}${unit ? ` ${unit}` : ''}`;
+  document.getElementById('executiveNarrative').textContent = `El último registro corresponde a ${snap.latest.label} y se ubica ${direction}. ${snap.previous ? `Frente al período anterior, la variación es ${signedPct(snap.momPct)}.` : ''}`.trim();
+}
+
+function buildAnnualPeriodOptions() {
+  return Object.keys(currentYearlyStats || {})
+    .filter(key => key !== '__meta')
+    .map(Number)
+    .sort((a,b) => a-b)
+    .map(year => ({ key: String(year), label: String(year), value: currentYearlyStats[year]?.annualValue ?? null }))
+    .filter(item => item.value !== null && item.value !== undefined && !Number.isNaN(Number(item.value)));
+}
+
+function setPeriodComparisonMode(mode) {
+  periodComparisonMode = mode === 'annual' ? 'annual' : 'monthly';
+  renderPeriodComparisonControls(true);
+}
+
+function renderPeriodComparisonControls(reset = false) {
+  if (!currentIndicator) return;
+  const modeSelect = document.getElementById('periodCompareMode');
+  const selectA = document.getElementById('periodCompareA');
+  const selectB = document.getElementById('periodCompareB');
+  if (!modeSelect || !selectA || !selectB) return;
+  modeSelect.value = periodComparisonMode;
+  const options = periodComparisonMode === 'annual' ? buildAnnualPeriodOptions() : getMonthlyPeriods();
+  const previousA = reset ? '' : selectA.value;
+  const previousB = reset ? '' : selectB.value;
+  const html = options.map(item => `<option value="${escapeHtml(item.key)}">${escapeHtml(item.label)}</option>`).join('');
+  selectA.innerHTML = html;
+  selectB.innerHTML = html;
+  if (!options.length) {
+    updatePeriodComparison();
+    return;
+  }
+  const keys = new Set(options.map(item => item.key));
+  let defaultB = keys.has(previousB) ? previousB : options[options.length - 1].key;
+  let defaultA = keys.has(previousA) ? previousA : options[Math.max(0, options.length - 2)].key;
+  if (periodComparisonMode === 'monthly') {
+    const latest = options[options.length - 1];
+    const yoyKey = `${Number(latest.year) - 1}-${String(latest.month).padStart(2,'0')}`;
+    if (!previousA && keys.has(yoyKey)) defaultA = yoyKey;
+  }
+  selectA.value = defaultA;
+  selectB.value = defaultB;
+  updatePeriodComparison();
+}
+
+function getSelectedPeriodItem(selectId) {
+  const key = document.getElementById(selectId)?.value;
+  const options = periodComparisonMode === 'annual' ? buildAnnualPeriodOptions() : getMonthlyPeriods();
+  return options.find(item => item.key === key) || null;
+}
+
+function updatePeriodComparison() {
+  const a = getSelectedPeriodItem('periodCompareA');
+  const b = getSelectedPeriodItem('periodCompareB');
+  const unit = currentIndicator?.unit || '';
+  const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+  if (!a || !b) {
+    set('periodAValue','—'); set('periodBValue','—'); set('periodDeltaValue','—'); set('periodDeltaPct','—');
+    set('periodCompareInsight','No hay suficientes períodos con datos para comparar.');
+    return;
+  }
+  const delta = Number(b.value) - Number(a.value);
+  const pct = Number(a.value) !== 0 ? (delta / Math.abs(Number(a.value))) * 100 : null;
+  set('periodAValue', `${formatNumber(a.value)}${unit ? ` ${unit}` : ''}`);
+  set('periodBValue', `${formatNumber(b.value)}${unit ? ` ${unit}` : ''}`);
+  set('periodALabel', a.label);
+  set('periodBLabel', b.label);
+  set('periodDeltaValue', signedNumber(delta, unit));
+  set('periodDeltaPct', pct === null ? 'Base igual a cero' : signedPct(pct));
+  const insight = pct === null ? `Entre ${a.label} y ${b.label}, la diferencia absoluta es ${signedNumber(delta, unit)}.` : pct > 0 ? `${b.label} está ${signedPct(pct)} por encima de ${a.label}.` : pct < 0 ? `${b.label} está ${signedPct(Math.abs(pct))} por debajo de ${a.label}.` : `${a.label} y ${b.label} muestran el mismo valor.`;
+  set('periodCompareInsight', insight);
+  const emphasis = document.querySelector('.period-result-cell.emphasis');
+  if (emphasis) {
+    emphasis.classList.remove('positive','negative','neutral');
+    emphasis.classList.add(changeClass(pct));
+  }
+}
+
+function swapPeriodComparison() {
+  const a = document.getElementById('periodCompareA');
+  const b = document.getElementById('periodCompareB');
+  if (!a || !b) return;
+  const temp = a.value;
+  a.value = b.value;
+  b.value = temp;
+  updatePeriodComparison();
+}
+
+const _destiqRenderDashboard = renderDashboard;
+renderDashboard = function() {
+  _destiqRenderDashboard();
+  renderExecutiveSummary();
+  renderPeriodComparisonControls(false);
+};
+
+function goToMonitorSection(section) {
+  let target = null;
+  if (section === 'summary') target = currentIndicator ? document.getElementById('indicatorSummarySection') : document.getElementById('destinationOverview');
+  if (section === 'evolution') target = currentIndicator ? document.getElementById('evolutionSection') : document.getElementById('destinationOverview');
+  if (section === 'periods') target = currentIndicator ? document.getElementById('periodComparisonSection') : document.getElementById('destinationOverview');
+  if (section === 'destinations') target = document.getElementById('comparisonSection');
+  if (section === 'rankings') target = document.getElementById('territorialRankingCard');
+  if (section === 'insights') target = document.getElementById('automaticInsightsCard');
+  if (section === 'data') target = currentIndicator ? document.getElementById('dataSection') : document.getElementById('destinationOverview');
+  target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function toggleSidebar(force) {
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('sidebarBackdrop');
+  if (!sidebar || !backdrop) return;
+  const shouldOpen = typeof force === 'boolean' ? force : !sidebar.classList.contains('mobile-open');
+  sidebar.classList.toggle('mobile-open', shouldOpen);
+  backdrop.classList.toggle('visible', shouldOpen);
+}
+
+function downloadCurrentChartPng() {
+  if (!currentIndicator) return;
+  const canvas = document.getElementById('lineChart');
+  if (!canvas) return;
+  try {
+    const link = document.createElement('a');
+    link.download = `${slugify(currentDestination?.name || 'destino')}-${slugify(currentIndicator.name)}.png`;
+    link.href = canvas.toDataURL('image/png', 1);
+    link.click();
+  } catch (error) {
+    toast('No se pudo exportar el gráfico en PNG.', 'error');
+  }
+}

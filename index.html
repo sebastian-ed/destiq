@@ -3,20 +3,20 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>DestIQ · Monitor de inteligencia turística</title>
+<title>Dashboard · Indicadores de Turismo Argentina</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="css/style.css"/>
 </head>
-<body class="public-dashboard">
+<body>
 
 <div class="app-shell">
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
-      <div class="logo-badge">DESTIQ</div>
-      <h1>Monitor de turismo</h1>
-      <p>Indicadores, tendencias y comparaciones para interpretar el turismo.</p>
+      <div class="logo-badge">📊 Turismo</div>
+      <h1>Indicadores de Turismo</h1>
+      <p>Vista agrupada por destino</p>
     </div>
 
     <div class="sidebar-search-wrap"><label class="form-label" for="destinationSearch">Buscar destino</label><input id="destinationSearch" class="form-control compact-control" placeholder="Ej. Bariloche" oninput="renderSidebar()"/></div>
@@ -38,8 +38,6 @@
   </aside>
 
   <main class="main-content" id="dashboardRoot">
-    <header class="public-header"><div><div class="eyebrow">OBSERVATORIO · INTELIGENCIA TURÍSTICA</div><h1>Turismo en perspectiva</h1><p>Últimos datos, variaciones y comparaciones temporales explicadas en un solo lugar.</p></div><div class="public-header-actions"><button class="btn btn-secondary mobile-filter-btn" type="button" onclick="toggleSidebar()">Destinos y filtros</button></div></header>
-    <nav class="monitor-nav" aria-label="Navegación"><button type="button" onclick="goToMonitorSection('summary')"><span>01</span> Resumen</button><button type="button" onclick="goToMonitorSection('periods')"><span>02</span> Períodos</button><button type="button" onclick="goToMonitorSection('evolution')"><span>03</span> Evolución</button><button type="button" onclick="goToMonitorSection('destinations')"><span>04</span> Destinos</button><button type="button" onclick="goToMonitorSection('rankings')"><span>05</span> Rankings</button><button type="button" onclick="goToMonitorSection('insights')"><span>06</span> Hallazgos</button><button type="button" onclick="goToMonitorSection('data')"><span>07</span> Datos</button></nav>
 
     <div class="comparison-card monitor-section" id="comparisonSection">
       <div class="comparison-card-header">
@@ -207,7 +205,7 @@
     </div>
 
     <div id="destinationOverview" class="destination-overview overview-card monitor-section">
-      <div class="overview-hero"><div class="section-number">01 · RESUMEN DEL DESTINO</div>
+      <div class="overview-hero">
         <div class="title-with-badge">
           <h2 id="destinationTitle">—</h2>
           <span class="badge badge-blue" id="destinationBadge">0 indicadores</span>
@@ -231,7 +229,7 @@
       </div>
 
 
-      <div class="snapshot-block"><div class="section-heading-row"><div><div class="section-number">PANORAMA RÁPIDO</div><h3>Qué está pasando ahora</h3></div><span class="section-note">Último dato disponible por indicador</span></div><div class="snapshot-grid" id="overviewSnapshotGrid"></div><div class="empty-indicators" id="overviewSnapshotEmpty" style="display:none">No hay series con datos para resumir.</div></div>
+      <div class="snapshot-block"><div class="section-heading-row"><div><div class="section-number">PANORAMA RÁPIDO</div><h3>Últimos datos disponibles</h3></div><span class="section-note">Último dato disponible por indicador</span></div><div class="snapshot-grid" id="overviewSnapshotGrid"></div><div class="empty-indicators" id="overviewSnapshotEmpty" style="display:none">No hay series con datos para resumir.</div></div>
       <div class="overview-card-header">
         <h3>Indicadores del destino</h3>
         <span class="badge badge-green">Seleccioná uno para abrir el dashboard</span>
@@ -294,7 +292,7 @@
         <div class="section-heading-row">
           <div>
             <div class="section-number">02 · COMPARAR PERÍODOS</div>
-            <h2>Dos momentos, una diferencia clara</h2>
+            <h2>Comparación entre períodos</h2>
             <p>Elegí dos meses o dos años y comparalos con la misma metodología.</p>
           </div>
         </div>
